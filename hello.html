@@ -40,20 +40,20 @@ attribute vec4 vPosition;
 uniform mat4 vModelView;
 uniform mat4 vProjection; 
 
-varying vec3 color;
+//varying vec3 color;
 
 void main() {
-	color = vPosition.xyz;
+	//color = vPosition.xyz;
 	gl_Position = vProjection * vModelView * vPosition;
 }
 </script> 
 
 <script type="text/glsl" id="shaderCube.fs">
 precision mediump float;
-varying vec3 color;  
+//varying vec3 color;  
  
 void main() {
-	gl_FragColor = vec4(color, 1.0);
+	gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0);
 }
 </script> 
 

@@ -71,11 +71,16 @@ SHAPES.createGround = function (gl, projection) {
 
     program.texture = texture; 
 
-    gl.enable(gl.DEPTH_TEST); 
+    gl.bindBuffer(gl.ARRAY_BUFFER, null);
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null);
 
 	return {
 		"draw" : function() {
 			gl.useProgram(program); 
+
+			//TEST 			
+    		gl.enableVertexAttribArray(0); 
+ 		    gl.enableVertexAttribArray(1); 
 
 			mat4.identity(modelview); 
 
