@@ -106,7 +106,13 @@ SHAPES.createGround = function (gl, projection) {
 			gl.bindTexture(gl.TEXTURE_2D, program.texture);
 			gl.uniform1i(fTexIndx, 0);
 
+			gl.bindBuffer(gl.ARRAY_BUFFER, posbuffer); 
+			gl.vertexAttribPointer(0, 4, gl.FLOAT, false, 0, 0); 
+    		gl.enableVertexAttribArray(0); 
+
 			gl.drawArrays(gl.TRIANGLES, 0, program.numVertices); 
+
+		    gl.bindBuffer(gl.ARRAY_BUFFER, null);
 		}, 
 		"update" : function(milis) {
 			var a = milis * 2 * Math.PI / 1000;

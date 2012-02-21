@@ -3373,7 +3373,13 @@ SHAPES.createGround = function (gl, projection) {
 			gl.bindTexture(gl.TEXTURE_2D, program.texture);
 			gl.uniform1i(fTexIndx, 0);
 
+			gl.bindBuffer(gl.ARRAY_BUFFER, posbuffer); 
+			gl.vertexAttribPointer(0, 4, gl.FLOAT, false, 0, 0); 
+    		gl.enableVertexAttribArray(0); 
+
 			gl.drawArrays(gl.TRIANGLES, 0, program.numVertices); 
+
+		    gl.bindBuffer(gl.ARRAY_BUFFER, null);
 		}, 
 		"update" : function(milis) {
 			var a = milis * 2 * Math.PI / 1000;
@@ -3419,6 +3425,7 @@ SHAPES.createCube = function (gl, projection) {
     gl.linkProgram(program); 
 
 	//Shader linked
+	//Tauschen? 
     gl.bindAttribLocation(program, vPositionIndx, "vPosition"); 
 
     gl.useProgram(program); 
@@ -3511,18 +3518,18 @@ SHAPES.createCube = function (gl, projection) {
 			gl.useProgram(program); 
 
 			mat4.identity(modelview); 
+
 			mat4.translate(modelview, [0,0,-4]); 
 			mat4.rotateY(modelview, alphax); 
 			mat4.rotateX(modelview, alphay); 
+
+			//!!! camera = mat4.lookAt(....); 
+			//!!! mat4.multiply(modelview, camera); 
 
 			//mat4.translate(modelview, [0,-0.5,-2]); 
 			//mat4.scale(modelview, [20,1,20]); 
 			//mat4.rotateY(modelview, alpha); 
 					
-			//var proj = mat4.identity(); 
-			//mat4.inverse(eye, proj); 
-			//mat4.multiply(eye, projection, proj); 
-
 			var vModelViewIndx = gl.getUniformLocation(program, "vModelView");
 			gl.uniformMatrix4fv(vModelViewIndx, false, modelview);
 
@@ -3538,7 +3545,7 @@ SHAPES.createCube = function (gl, projection) {
 			//gl.uniform1i(fTexIndx, 0);
 
 			gl.bindBuffer(gl.ARRAY_BUFFER, posbuffer); 
-		    gl.vertexAttribPointer(vPositionIndx, posbuffer.num, gl.FLOAT, false, 0, 0); 
+		    gl.vertexAttribPointer(vPositionIndx, 3, gl.FLOAT, false, 0, 0); 
     		gl.enableVertexAttribArray(vPositionIndx); 
 	
 			gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);        
@@ -3583,18 +3590,18 @@ function main() {
     gl = UTIL.createContext(640, 480); 
 	var lastTime = Date.now(); 
 
-    //var ground = SHAPES.createGround(gl, projection); 
     var cube = SHAPES.createCube(gl, projection); 
+    var ground = SHAPES.createGround(gl, projection); 
 
     UTIL.requestAnimationFrame(function loop() {
 		var currentTime = Date.now(); 
 		var delta = currentTime - lastTime; 
         if(isRunning) { 			
 			clear(gl); 
-            //ground.draw();
-            //ground.update(delta); 
 			cube.draw(); 
 			cube.update(delta); 
+            ground.draw();
+            ground.update(delta); 
         }
 
 		lastTime = currentTime; 
@@ -3607,6 +3614,7 @@ function clear(gl) {
     gl.viewport(0, 0, 640, 480); 
     gl.clearColor(97 / 256, 149 / 256, 237 / 256, 1); 
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT); 
+	gl.enable(gl.DEPTH_TEST); 
 }
 
 main(); 

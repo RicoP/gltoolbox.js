@@ -26,6 +26,7 @@ SHAPES.createCube = function (gl, projection) {
     gl.linkProgram(program); 
 
 	//Shader linked
+	//Tauschen? 
     gl.bindAttribLocation(program, vPositionIndx, "vPosition"); 
 
     gl.useProgram(program); 
@@ -118,18 +119,18 @@ SHAPES.createCube = function (gl, projection) {
 			gl.useProgram(program); 
 
 			mat4.identity(modelview); 
+
 			mat4.translate(modelview, [0,0,-4]); 
 			mat4.rotateY(modelview, alphax); 
 			mat4.rotateX(modelview, alphay); 
+
+			//!!! camera = mat4.lookAt(....); 
+			//!!! mat4.multiply(modelview, camera); 
 
 			//mat4.translate(modelview, [0,-0.5,-2]); 
 			//mat4.scale(modelview, [20,1,20]); 
 			//mat4.rotateY(modelview, alpha); 
 					
-			//var proj = mat4.identity(); 
-			//mat4.inverse(eye, proj); 
-			//mat4.multiply(eye, projection, proj); 
-
 			var vModelViewIndx = gl.getUniformLocation(program, "vModelView");
 			gl.uniformMatrix4fv(vModelViewIndx, false, modelview);
 
@@ -145,7 +146,7 @@ SHAPES.createCube = function (gl, projection) {
 			//gl.uniform1i(fTexIndx, 0);
 
 			gl.bindBuffer(gl.ARRAY_BUFFER, posbuffer); 
-		    gl.vertexAttribPointer(vPositionIndx, posbuffer.num, gl.FLOAT, false, 0, 0); 
+		    gl.vertexAttribPointer(vPositionIndx, 3, gl.FLOAT, false, 0, 0); 
     		gl.enableVertexAttribArray(vPositionIndx); 
 	
 			gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);        
@@ -178,4 +179,3 @@ SHAPES.createCube = function (gl, projection) {
 		}
 	};	
 }
-
