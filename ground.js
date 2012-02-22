@@ -1,6 +1,4 @@
-var SHAPES = SHAPES || {}; 
- 
-SHAPES.createGround = function (gl, projection) { 
+module.createGround = function (gl, projection) { 
     var vPositionIndx = 0; 
     var vColorIndx = 1; 
     var vTransIndx = 2; 
@@ -29,7 +27,7 @@ SHAPES.createGround = function (gl, projection) {
     gl.useProgram(program); 
 
     //Vertices
-    var plane = UTIL.createPlane(); 
+    var plane = UTIL.createPlane(2); 
     var vertices = plane.vertices; 
     var texCoords = plane.texCoords; 
 
@@ -75,7 +73,7 @@ SHAPES.createGround = function (gl, projection) {
     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null);
 
 	return {
-		"draw" : function() {
+		"draw" : function(camera) {
 			gl.useProgram(program); 
 
 			//TEST 			
@@ -84,8 +82,8 @@ SHAPES.createGround = function (gl, projection) {
 
 			mat4.identity(modelview); 
 
-			mat4.translate(modelview, [0,-0.5,-2]); 
-			mat4.scale(modelview, [20,1,20]); 
+			mat4.multiply(modelview, camera); 
+			mat4.scale(modelview, [10,1,10]); 
 			mat4.rotateY(modelview, alpha); 
 					
 			//var proj = mat4.identity(); 
