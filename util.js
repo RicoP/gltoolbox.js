@@ -4,6 +4,8 @@
 var UTIL = (function() {
 "use strict"; 
 
+var lastTime = -1; 
+
 var raf = window.requestAnimationFrame       || 
 		  window.webkitRequestAnimationFrame || 
 		  window.mozRequestAnimationFrame    || 
@@ -17,56 +19,81 @@ var keyfuncs = (function() {
 	var keysDown = new Uint8Array(256); 
 	var keysDownOld = new Uint8Array(256); 
 
-	cleanKeys(keysDown); 
-	cleanKeys(keysDownOld); 
+	cleanKeys(); 
 
 	document.addEventListener("keydown", function(e) {
 		var k = e.keyCode; 
-		setKey(k, 1) 
+		if(k < 256) {
+			keysDown[k] = 1; 
+		}
 	}); 
 
 	document.addEventListener("keyup", function(e) {
 		var k = e.keyCode; 
-		setKey(k, 0) 
+		if(k < 256) {
+			keysDown[k] = 0; 
+		}
 	}); 
 
 	window.addEventListener("blur", function() { 
-		cleanKeys(keysDown); 
-		cleanKeys(keysDownOld); 
+		cleanKeys(); 	
 	});
 
-	function cleanKeys(keys) { 
-		for(var i = 0; i != 256; i++) {
-			keys[i] = 0; 
+	function cleanKeys() {
+		for(var i = 0; i !== 256; i++) {
+			keysDownOld[i] = 0; 
+			keysDown[i] = 0; 
 		}
 	}
 
-	function setKey(key, value) {
-		if(key < 256) {  
-			keysDownOld[key] = keysDown[key]; 
-			keysDown[key] = value; 
+	function setOldKeyState() {
+		for(var i = 0; i !== 256; i++) {
+			keysDownOld[i] = keysDown[i]; 
 		}
 	}
+
+	var keys = {
+		"backspace":8, "tab":9, "enter":13, "shift":16, "ctrl":17, "alt":18, "pause":19, "capslock":20,
+		"escape":27, "space":32, "pageUp":33, "pageDown":34, "end":35, "home":36,
+		"left":37, "up":38, "right":39, "down":40, 
+		"insert":45, "delete":46,
+		"num0":48, "num1":49, "num2":50, "num3":51, "num4":52, "num5":53, "num6":54, "num7":55, "num8":56, "num9":57,
+		"a":65, "b":66, "c":67, "d":68, "e":69, "f":70, "g":71, "h":72, "i":73, "j":74, "k":75, "l":76, "m":77, 
+		"n":78, "o":79, "p":80, "q":81, "r":82, "s":83, "t":84, "u":85, "v":86, "w":87, "x":88, "y":89, "z":90, 
+		"windowKeyLeft":91, "windowKeyRight":92, "select":93,
+		"numpad0":96, "numpad1":97, "numpad2":98, "numpad3":99, "numpad4":100, 
+		"numpad5":101, "numpad6":102, "numpad7":103, "numpad8":104, "numpad9":105,
+		"multiply":106, "add":107, "subtract":109, "decimalPoint":110, "divide":111,
+		"f1":112, "f2":113, "f3":114, "f4":115, "f5":116, "f6":117,
+		"f7":118, "f8":119, "f9":120, "f10":121, "f11":122, "f12":123,
+		"numlock":144, "scrolllock":145, "semicolon":186, "equals":187, "comma":188,
+		"dash":189, "period":190, "slash":191, "graveAccent":192, "openBracket":219,
+		"backSlash":220, "closeBraket":221, "quote":222
+	};
 
 	return {
 		"keyIsDown" : function (key) {
 			return keysDown[key] !== 0; 
 		}, 
 		"keyIsUp" :  function (key) {
-			return keysDown[key] !== 0; 
+			return keysDown[key] === 0; 
 		}, 
-		"keyWasPressed" : function keyWasPressed(key) {
-			return keysDownOld[key] === 0 && keysDown[key] !== 0;
+		"keyWasPressed" : function (key) {
+			return keysDown[key] !== 0 && keysDownOld[key] === 0;
 		},  
-		"keyWasReleased" : function keyWasPressed(key) {
-			return keysDownOld[key] !== 0 && keysDown[key] === 0;
-		}
+		"keyWasReleased" : function (key) {
+			return keysDown[key] === 0 && keysDownOld[key] !== 0;
+		}, 
+		"keys" : keys, 
+		"setOldKeyState" : setOldKeyState, 
+		"keysDown" : keysDown, 
+		"keysDownOld" : keysDownOld 
 	};
 }());
 
-var gamepads = []; //Updated in raf
 
 var joyfuncs = (function () {
+	var gamepads = navigator.webkitGamepads || navigator.mozGamepads || navigator.gamepads || [];
 	var e = 0.2; 
 	var edge0 = e; 
 	var edge1 = 1 - e; 
@@ -87,9 +114,6 @@ var joyfuncs = (function () {
 				for(var a = 0; a < pad.axes.length; a++) { 
 					if(pad.axes[a]) { 
 						axes[a] = normalise(pad.axes[a]);
-						if(isNaN(axes[a])) {
-							console.log("ups"); 
-						}
 					}
 				}
 
@@ -134,6 +158,36 @@ function createContext(width, height) {
 function getSource(id) {
     var node = document.getElementById(id); 
     return node.innerText; 
+}
+
+function createCube() {
+	var vert = new Float32Array([
+		-1, -1,  1, 1,
+		 1, -1,  1, 1,
+		 1,  1,  1, 1,
+		-1,  1,  1, 1,
+		-1, -1, -1, 1,
+		 1, -1, -1, 1,
+		 1,  1, -1, 1,
+		-1,  1, -1, 1
+	]); 
+
+	var indx = new Uint16Array([
+		0,1,2,
+		0,2,3,
+		1,5,6,
+		1,6,2,
+		5,4,7,
+		5,7,6,
+		4,0,3,
+		4,3,7,
+		3,2,6,
+		3,6,7,
+		4,5,1,
+		4,1,0
+	]);
+
+	return { vertices : vert, indices : indx };
 }
 
 function createPlane(level) {
@@ -231,15 +285,23 @@ function parseObjData(data) {
 			normals.push(a,b,c,0); 
 		},
 
-		"f" : function(faces) {
-			if(faces.length !== 3) {
-				throw "Faces which are non trinagles are not yet supportet."; 
+		"f" : function processFace(vertices) {
+			if(vertices.length < 3) {
+				throw "Strange amount of vertices in face."; 
+			}
+
+			if(vertices.length > 3) {
+				//let's asume it's convex 
+				for(var n = vertices.length - 1; n !== 1; n--) {
+					processFace([vertices[0], vertices[n-1], vertices[n]]); 
+				}
+				return; 
 			}
 
 			var fa,fb,fc;
-			fa = faces[0].split(/\//g);
-			fb = faces[1].split(/\//g);
-			fc = faces[2].split(/\//g);
+			fa = vertices[0].split(/\//g);
+			fb = vertices[1].split(/\//g);
+			fc = vertices[2].split(/\//g);
 			
 			var fav,fat,fan, fbv,fbt,fbn, fcv,fct,fcn; 
 			fav = fa[0]; 
@@ -270,35 +332,26 @@ function parseObjData(data) {
 	};
 }
 
-var keys = {
-	"backspace":8, "tab":9, "enter":13, "shift":16, "ctrl":17, "alt":18, "pause":19, "capslock":20,
-	"escape":27, "space":32, "pageUp":33, "pageDown":34, "end":35, "home":36,
-	"left":37, "up":38, "right":39, "down":40, 
-	"insert":45, "delete":46,
-	"num0":48, "num1":49, "num2":50, "num3":51, "num4":52, "num5":53, "num6":54, "num7":55, "num8":56, "num9":57,
-	"a":65, "b":66, "c":67, "d":68, "e":69, "f":70, "g":71, "h":72, "i":73, "j":74, "k":75, "l":76, "m":77, 
-	"n":78, "o":79, "p":80, "q":81, "r":82, "s":83, "t":84, "u":85, "v":86, "w":87, "x":88, "y":89, "z":90, 
-	"windowKeyLeft":91, "windowKeyRight":92, "select":93,
-	"numpad0":96, "numpad1":97, "numpad2":98, "numpad3":99, "numpad4":100, 
-	"numpad5":101, "numpad6":102, "numpad7":103, "numpad8":104, "numpad9":105,
-	"multiply":106, "add":107, "subtract":109, "decimalPoint":110, "divide":111,
-	"f1":112, "f2":113, "f3":114, "f4":115, "f5":116, "f6":117,
-	"f7":118, "f8":119, "f9":120, "f10":121, "f11":122, "f12":123,
-	"numlock":144, "scrolllock":145, "semicolon":186, "equals":187, "comma":188,
-	"dash":189, "period":190, "slash":191, "graveAccent":192, "openBracket":219,
-	"backSlash":220, "closeBraket":221, "quote":222
-};
+function requestGameFrame (callback) { 
+	raf(function () {
+		var now = Date.now(); 
+		if(lastTime === -1) {
+			now = lastTime = Date.now(); 
+		}
+		callback(now - lastTime); 
+		keyfuncs.setOldKeyState(); 
+		lastTime = now; 
+	}); 
+}
 
 return {
-	"requestAnimationFrame" : function(callback) { 
-		gamepads = navigator.webkitGamepads || navigator.mozGamepads || navigator.gamepads || [];
-		raf(callback); 
-	}, 
+	"requestGameFrame" : requestGameFrame, 
 	"createContext" : createContext,
 	"getSource" : getSource,  
 	"createPlane" : createPlane,
+	"createCube" : createCube, 
 	"parseObjData" : parseObjData, 
-	"keys" : keys,
+	"keys" : keyfuncs.keys,
 	"keyIsDown" : keyfuncs.keyIsDown, 
 	"keyIsUp" : keyfuncs.keyIsUp, 
 	"keyWasPressed" : keyfuncs.keyWasPressed, 

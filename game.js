@@ -2231,6 +2231,7 @@ var WebGLDebugUtils = function() {
  */
 var log = function(msg) {
   if (window.console && window.console.log) {
+	throw msg; 
     window.console.log(msg);
   }
 };
@@ -3023,6 +3024,8 @@ return {
 var UTIL = (function() {
 "use strict"; 
 
+var lastTime = Date.now(); 
+
 var raf = window.requestAnimationFrame       || 
 		  window.webkitRequestAnimationFrame || 
 		  window.mozRequestAnimationFrame    || 
@@ -3036,56 +3039,81 @@ var keyfuncs = (function() {
 	var keysDown = new Uint8Array(256); 
 	var keysDownOld = new Uint8Array(256); 
 
-	cleanKeys(keysDown); 
-	cleanKeys(keysDownOld); 
+	cleanKeys(); 
 
 	document.addEventListener("keydown", function(e) {
 		var k = e.keyCode; 
-		setKey(k, 1) 
+		if(k < 256) {
+			keysDown[k] = 1; 
+		}
 	}); 
 
 	document.addEventListener("keyup", function(e) {
 		var k = e.keyCode; 
-		setKey(k, 0) 
+		if(k < 256) {
+			keysDown[k] = 0; 
+		}
 	}); 
 
 	window.addEventListener("blur", function() { 
-		cleanKeys(keysDown); 
-		cleanKeys(keysDownOld); 
+		cleanKeys(); 	
 	});
 
-	function cleanKeys(keys) { 
-		for(var i = 0; i != 256; i++) {
-			keys[i] = 0; 
+	function cleanKeys() {
+		for(var i = 0; i !== 256; i++) {
+			keysDownOld[i] = 0; 
+			keysDown[i] = 0; 
 		}
 	}
 
-	function setKey(key, value) {
-		if(key < 256) {  
-			keysDownOld[key] = keysDown[key]; 
-			keysDown[key] = value; 
+	function setOldKeyState() {
+		for(var i = 0; i !== 256; i++) {
+			keysDownOld[i] = keysDown[i]; 
 		}
 	}
+
+	var keys = {
+		"backspace":8, "tab":9, "enter":13, "shift":16, "ctrl":17, "alt":18, "pause":19, "capslock":20,
+		"escape":27, "space":32, "pageUp":33, "pageDown":34, "end":35, "home":36,
+		"left":37, "up":38, "right":39, "down":40, 
+		"insert":45, "delete":46,
+		"num0":48, "num1":49, "num2":50, "num3":51, "num4":52, "num5":53, "num6":54, "num7":55, "num8":56, "num9":57,
+		"a":65, "b":66, "c":67, "d":68, "e":69, "f":70, "g":71, "h":72, "i":73, "j":74, "k":75, "l":76, "m":77, 
+		"n":78, "o":79, "p":80, "q":81, "r":82, "s":83, "t":84, "u":85, "v":86, "w":87, "x":88, "y":89, "z":90, 
+		"windowKeyLeft":91, "windowKeyRight":92, "select":93,
+		"numpad0":96, "numpad1":97, "numpad2":98, "numpad3":99, "numpad4":100, 
+		"numpad5":101, "numpad6":102, "numpad7":103, "numpad8":104, "numpad9":105,
+		"multiply":106, "add":107, "subtract":109, "decimalPoint":110, "divide":111,
+		"f1":112, "f2":113, "f3":114, "f4":115, "f5":116, "f6":117,
+		"f7":118, "f8":119, "f9":120, "f10":121, "f11":122, "f12":123,
+		"numlock":144, "scrolllock":145, "semicolon":186, "equals":187, "comma":188,
+		"dash":189, "period":190, "slash":191, "graveAccent":192, "openBracket":219,
+		"backSlash":220, "closeBraket":221, "quote":222
+	};
 
 	return {
 		"keyIsDown" : function (key) {
 			return keysDown[key] !== 0; 
 		}, 
 		"keyIsUp" :  function (key) {
-			return keysDown[key] !== 0; 
+			return keysDown[key] === 0; 
 		}, 
-		"keyWasPressed" : function keyWasPressed(key) {
-			return keysDownOld[key] === 0 && keysDown[key] !== 0;
+		"keyWasPressed" : function (key) {
+			return keysDown[key] === 1 && keysDownOld[key] === 0;
 		},  
-		"keyWasReleased" : function keyWasPressed(key) {
-			return keysDownOld[key] !== 0 && keysDown[key] === 0;
-		}
+		"keyWasReleased" : function (key) {
+			return keysDown[key] === 0 && keysDownOld[key] === 1;
+		}, 
+		"keys" : keys, 
+		"setOldKeyState" : setOldKeyState, 
+		"keysDown" : keysDown, 
+		"keysDownOld" : keysDownOld 
 	};
 }());
 
-var gamepads = []; //Updated in raf
 
 var joyfuncs = (function () {
+	var gamepads = navigator.webkitGamepads || navigator.mozGamepads || navigator.gamepads || [];
 	var e = 0.2; 
 	var edge0 = e; 
 	var edge1 = 1 - e; 
@@ -3153,6 +3181,36 @@ function createContext(width, height) {
 function getSource(id) {
     var node = document.getElementById(id); 
     return node.innerText; 
+}
+
+function createCube() {
+	var vert = new Float32Array([
+		-1, -1,  1, 1,
+		 1, -1,  1, 1,
+		 1,  1,  1, 1,
+		-1,  1,  1, 1,
+		-1, -1, -1, 1,
+		 1, -1, -1, 1,
+		 1,  1, -1, 1,
+		-1,  1, -1, 1
+	]); 
+
+	var indx = new Uint16Array([
+		0,1,2,
+		0,2,3,
+		1,5,6,
+		1,6,2,
+		5,4,7,
+		5,7,6,
+		4,0,3,
+		4,3,7,
+		3,2,6,
+		3,6,7,
+		4,5,1,
+		4,1,0
+	]);
+
+	return { vertices : vert, indices : indx };
 }
 
 function createPlane(level) {
@@ -3250,15 +3308,23 @@ function parseObjData(data) {
 			normals.push(a,b,c,0); 
 		},
 
-		"f" : function(faces) {
-			if(faces.length !== 3) {
-				throw "Faces which are non trinagles are not yet supportet."; 
+		"f" : function processFace(vertices) {
+			if(vertices.length < 3) {
+				throw "Strange amount of vertices in face."; 
+			}
+
+			if(vertices.length > 3) {
+				//let's asume it's convex 
+				for(var n = vertices.length - 1; n !== 1; n--) {
+					processFace([vertices[0], vertices[n-1], vertices[n]]); 
+				}
+				return; 
 			}
 
 			var fa,fb,fc;
-			fa = faces[0].split(/\//g);
-			fb = faces[1].split(/\//g);
-			fc = faces[2].split(/\//g);
+			fa = vertices[0].split(/\//g);
+			fb = vertices[1].split(/\//g);
+			fc = vertices[2].split(/\//g);
 			
 			var fav,fat,fan, fbv,fbt,fbn, fcv,fct,fcn; 
 			fav = fa[0]; 
@@ -3289,35 +3355,23 @@ function parseObjData(data) {
 	};
 }
 
-var keys = {
-	"backspace":8, "tab":9, "enter":13, "shift":16, "ctrl":17, "alt":18, "pause":19, "capslock":20,
-	"escape":27, "space":32, "pageUp":33, "pageDown":34, "end":35, "home":36,
-	"left":37, "up":38, "right":39, "down":40, 
-	"insert":45, "delete":46,
-	"num0":48, "num1":49, "num2":50, "num3":51, "num4":52, "num5":53, "num6":54, "num7":55, "num8":56, "num9":57,
-	"a":65, "b":66, "c":67, "d":68, "e":69, "f":70, "g":71, "h":72, "i":73, "j":74, "k":75, "l":76, "m":77, 
-	"n":78, "o":79, "p":80, "q":81, "r":82, "s":83, "t":84, "u":85, "v":86, "w":87, "x":88, "y":89, "z":90, 
-	"windowKeyLeft":91, "windowKeyRight":92, "select":93,
-	"numpad0":96, "numpad1":97, "numpad2":98, "numpad3":99, "numpad4":100, 
-	"numpad5":101, "numpad6":102, "numpad7":103, "numpad8":104, "numpad9":105,
-	"multiply":106, "add":107, "subtract":109, "decimalPoint":110, "divide":111,
-	"f1":112, "f2":113, "f3":114, "f4":115, "f5":116, "f6":117,
-	"f7":118, "f8":119, "f9":120, "f10":121, "f11":122, "f12":123,
-	"numlock":144, "scrolllock":145, "semicolon":186, "equals":187, "comma":188,
-	"dash":189, "period":190, "slash":191, "graveAccent":192, "openBracket":219,
-	"backSlash":220, "closeBraket":221, "quote":222
-};
+function requestGameFrame (callback) { 
+		raf(function () {
+			var now = Date.now(); 
+			callback(now - lastTime); 
+			keyfuncs.setOldKeyState(); 
+			lastTime = now; 
+		}); 
+}
 
 return {
-	"requestAnimationFrame" : function(callback) { 
-		gamepads = navigator.webkitGamepads || navigator.mozGamepads || navigator.gamepads || [];
-		raf(callback); 
-	}, 
+	"requestGameFrame" : requestGameFrame, 
 	"createContext" : createContext,
 	"getSource" : getSource,  
 	"createPlane" : createPlane,
+	"createCube" : createCube, 
 	"parseObjData" : parseObjData, 
-	"keys" : keys,
+	"keys" : keyfuncs.keys,
 	"keyIsDown" : keyfuncs.keyIsDown, 
 	"keyIsUp" : keyfuncs.keyIsUp, 
 	"keyWasPressed" : keyfuncs.keyWasPressed, 
@@ -3461,9 +3515,6 @@ var SHAPES = (function() {
 	
 
 	module.createCube = function (gl, projection) { 
-	    var vPositionIndx = 0; 
-	    var vColorIndx = 1; 
-	    var vTransIndx = 2; 
 		var modelview = mat4.identity();
 		var alphax = 0; 
 		var alphay = 0; 
@@ -3488,95 +3539,72 @@ var SHAPES = (function() {
 	
 		//Shader linked
 		//Tauschen? 
-	    gl.bindAttribLocation(program, vPositionIndx, "vPosition"); 
-	
 	    gl.useProgram(program); 
 	
 	    //Vertices
 		var objSource = UTIL.getSource("teapot.obj"); 
-	    var cube = UTIL.parseObjData(objSource);  
-	    var vertices = cube.vertices; 
-		var indices = cube.indices; 
-		/*var vertices = new Float32Array([  
-			-1, -1, -1, 
-			-1, -1,  1, 
-			-1,  1,  1, 
-			-1,  1, -1, 
-			 1, -1, -1, 
-			 1, -1,  1, 
-			 1,  1,  1, 
-			 1,  1, -1
-		]); */
-	    //var texCoords = cube.texCoords; 
+	    //var obj = UTIL.parseObjData(objSource);  
+	    var obj = UTIL.createCube();  
 	
-	    var posbuffer = gl.createBuffer(); 
+		
+	    var vertices = obj.vertices; 
+		var indices = obj.indices; 
+		var normals = obj.normals; 
 	
-	    gl.bindBuffer(gl.ARRAY_BUFFER, posbuffer);
+		//----
+	    var vertexBuffer = gl.createBuffer(); 
+	
+	    gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
 	    gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW);
 	
-	    posbuffer.num = vertices.length / 4; 
+	    var vertexBufferElements = vertices.length / 4; 
 	
-	    gl.vertexAttribPointer(vPositionIndx, 4, gl.FLOAT, false, 0, 0); 
-	    gl.enableVertexAttribArray(vPositionIndx); 
+		var aVertexIndex = gl.getAttribLocation(program, "aVertex"); 
+		if(aVertexIndex === -1) {
+			throw new Error("aVertex does not exist."); 
+		}
+	    gl.vertexAttribPointer(aVertexIndex, 4, gl.FLOAT, false, 0, 0); 
+	    gl.enableVertexAttribArray(aVertexIndex); 
+		//----
 	
-		/*cubeVertexIndexBuffer = gl.createBuffer();
-	        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, cubeVertexIndexBuffer);
-	        var cubeVertexIndices = [
-	            0, 1, 2,      0, 2, 3,    // Front face
-	            4, 5, 6,      4, 6, 7,    // Back face
-	            8, 9, 10,     8, 10, 11,  // Top face
-	            12, 13, 14,   12, 14, 15, // Bottom face
-	            16, 17, 18,   16, 18, 19, // Right face
-	            20, 21, 22,   20, 22, 23  // Left face
-	        ];
-	        gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(cubeVertexIndices), gl.STATIC_DRAW);
-	        cubeVertexIndexBuffer.itemSize = 1;
-	        cubeVertexIndexBuffer.numItems = 36;*/
-		/*var indices = new Uint16Array([ 
-			0, 7, 3, 
-			0, 4, 7, 
-			0, 1, 2, 
-			0, 2, 3, 
-			1, 4, 0, 
-			1, 5, 4, 
-			4, 6, 7,
-			4, 5, 6,
-			5, 1, 2,
-			5, 2, 6
-		]);*/
+		//----
+		/*
+	    var normalBuffer = gl.createBuffer(); 
+	
+	    gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
+	    gl.bufferData(gl.ARRAY_BUFFER, normals, gl.STATIC_DRAW);
+	
+	    var normalBufferSize = normals.length / 4; 
+	
+		var normalBufferIndex = gl.getAttribLocation(program, "aNormal"); 
+		if(normalBufferIndex === -1) {
+			throw new Error("aNormal does not exist."); 
+		}
+	    gl.vertexAttribPointer(normalBufferIndex, 4, gl.FLOAT, false, 0, 0); 
+	    gl.enableVertexAttribArray(normalBufferIndex); 
+		*/ 
+		//----
 	
 		var indexBuffer = gl.createBuffer(); 	
-		indexBuffer.num = indices.length; 
+		var indexBufferElements = indices.length; 
 	
 		gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
 		gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, indices, gl.STATIC_DRAW); 		
 	
-	    //Texture
-	    /*var texbuffer = gl.createBuffer(); 
-	
-	    gl.bindBuffer(gl.ARRAY_BUFFER, texbuffer);
-	    gl.bufferData(gl.ARRAY_BUFFER, texCoords, gl.STATIC_DRAW);
-	
-	    gl.vertexAttribPointer(1, 2, gl.FLOAT, false, 0, 0); 
-	    gl.enableVertexAttribArray(1); 
-	
-	    var texture = gl.createTexture(); 
-	    var image = new Image(); 
-	    image.onload = function() {
-	        gl.bindTexture(gl.TEXTURE_2D, texture);
-	        gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 1);
-	        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image);
-	        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-	        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-	        gl.bindTexture(gl.TEXTURE_2D, null);
-	    };
-	    image.src = "tex.png"; 
-	
-	    program.texture = texture; 
-		*/
-	
 		return {
 			"draw" : function(camera) {
+				//TEMPORARY VALUES 
+				/*
+				var uCameraPosition = vec3.create([camera[3], camera[7], camera[11]]); 
+				var uLightPosition = vec3.create([0,100,0]); 
+				var uWorldIllum = 0.2; 
+	            var uMaterialIllum = 0.4; 
+	            var uMaterialDiffus = 0.3;   
+	            var uMaterialSpecular = 0.3; 
+	            var uLightStrength = 0.5;  
+				*/ 
+				//----
+	
 				gl.useProgram(program); 
 	
 				mat4.identity(modelview); 
@@ -3594,12 +3622,48 @@ var SHAPES = (function() {
 				//mat4.translate(modelview, [0,-0.5,-2]); 
 				//mat4.scale(modelview, [20,1,20]); 
 				//mat4.rotateY(modelview, alpha); 
-						
-				var vModelViewIndx = gl.getUniformLocation(program, "vModelView");
-				gl.uniformMatrix4fv(vModelViewIndx, false, modelview);
+				
+				/*
+	uniform mat4 uProjection; 
+	uniform vec3 uCameraPosition; 
+	uniform vec3 uLightPosition; 
 	
-				var vProjectionIndx = gl.getUniformLocation(program, "vProjection");
-				gl.uniformMatrix4fv(vProjectionIndx, false, projection);
+	uniform float uWorldIllum; 
+	uniform float uMaterialIllum;
+	uniform float uMaterialDiffus;  
+	uniform float uMaterialSpecular; 
+	uniform float uLightStrength; 
+	
+	uniform mat4 uModelview;
+				*/
+				/*
+				var uProjectionIndex = gl.getUniformLocation(program, "uProjection");
+				gl.uniformMatrix4fv(uProjectionIndex, false, projection);
+	
+				var uCameraPositionIndex = gl.getUniformLocation(program, "uCameraPosition");
+				gl.uniform3fv(uCameraPositionIndex, uCameraPosition);
+	
+				var uLightPositionIndex = gl.getUniformLocation(program, "uLightPosition");
+				gl.uniform3fv(uLightPositionIndex, uLightPosition); 
+	
+				var uWorldIllumIndex = gl.getUniformLocation(program, "uWorldIllum");
+				gl.uniform1f(uWorldIllumIndex, uWorldIllum);
+	
+				var uMaterialIllumIndex = gl.getUniformLocation(program, "uMaterialIllum");
+				gl.uniform1f(uMaterialIllumIndex, uMaterialIllum);
+	
+				var uMaterialDiffusIndex = gl.getUniformLocation(program, "uMaterialDiffus");
+				gl.uniform1f(uMaterialDiffusIndex, uMaterialDiffus);
+	
+				var uMaterialSpecularIndex = gl.getUniformLocation(program, "uMaterialSpecular");
+				gl.uniform1f(uMaterialSpecularIndex, uMaterialSpecular); 
+	
+				var uLightStrengthIndex = gl.getUniformLocation(program, "uLightStrength");
+				gl.uniform1f(uLightStrengthIndex, uLightStrength); 
+	
+				var uModelViewIndex = gl.getUniformLocation(program, "uModelview");
+				gl.uniformMatrix4fv(uModelViewIndex, false, modelview);
+				*/ 
 	
 				//var vEyeIndx = gl.getUniformLocation(program, "vEye");
 				//gl.uniformMatrix4fv(vEyeIndx, false, eye);
@@ -3609,13 +3673,17 @@ var SHAPES = (function() {
 				//gl.bindTexture(gl.TEXTURE_2D, program.texture);
 				//gl.uniform1i(fTexIndx, 0);
 	
-				gl.bindBuffer(gl.ARRAY_BUFFER, posbuffer); 
-			    gl.vertexAttribPointer(vPositionIndx, 4, gl.FLOAT, false, 0, 0); 
-	    		gl.enableVertexAttribArray(vPositionIndx); 
+				gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer); 
+			    gl.vertexAttribPointer(aVertexIndex, 4, gl.FLOAT, false, 0, 0); 
+	    		gl.enableVertexAttribArray(aVertexIndex); 
+	
+				/*gl.bindBuffer(gl.ARRAY_BUFFER, normalBuffer); 
+			    gl.vertexAttribPointer(normalBufferIndex, 3, gl.FLOAT, false, 0, 0); 
+	    		gl.enableVertexAttribArray(normalBufferIndex); */
 		
 				gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);        
 	
-	        	gl.drawElements(gl.TRIANGLES, indexBuffer.num, gl.UNSIGNED_SHORT, 0);
+	        	gl.drawElements(gl.TRIANGLES, indexBufferElements, gl.UNSIGNED_SHORT, 0);
 	
 				gl.bindBuffer(gl.ARRAY_BUFFER, null); 
 				gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null);        
@@ -3687,10 +3755,7 @@ function main() {
     var cube = SHAPES.createCube(gl, projection); 
     var ground = SHAPES.createGround(gl, projection); 
 
-    UTIL.requestAnimationFrame(function loop() {
-		var currentTime = Date.now(); 
-		var delta = currentTime - lastTime; 
-
+    UTIL.requestGameFrame(function loop(delta) {
 		var camera = calcCamera(delta, camPos, camNormal, camDir, camUp); 
 
         if(isRunning) { 			
@@ -3700,28 +3765,43 @@ function main() {
 			cube.update(delta); 
             ground.update(delta); 
         }
+		
+		if(UTIL.keyWasReleased(UTIL.keys.p)) {
+			isRunning = !isRunning; 
+		}
 
-		lastTime = currentTime; 
-
-        UTIL.requestAnimationFrame(loop); 
+        UTIL.requestGameFrame(loop); 
     });
 }
 
 function calcCamera(delta, camPos, camNormal, camDir, camUp) {
+	var d = delta / 1000; 
+
+	if(UTIL.keyIsDown(UTIL.keys.shift)) {
+		d *= 3; 
+	}
+
 	var camera = mat4.lookAt(camPos, vec3.add(camPos, camNormal, camDir), camUp);
 	var pad = UTIL.getFirstPad();  
 
-	var padX1 = pad.axes[0] * delta / 1000; 
-	var padY1 = pad.axes[1] * delta / 1000; 
+	var padX1 = pad.axes[0]; 
+	var padY1 = pad.axes[1];
+	var padX2 = pad.axes[2];
+	var padY2 = pad.axes[3];
 
-	vec3.add(camPos, [-padY1 * camNormal[0], 0, -padY1 * camNormal[2]]); 
+	var forward = padY1 * d; 
+	var spin = padX2 * d * 2 * Math.PI; 
 
-	var padX2 = pad.axes[2] * delta * 2 * Math.PI / 1000; 
-	var padY2 = pad.axes[3] * delta * 2 * Math.PI / 1000; 
+	forward += UTIL.keyIsDown(UTIL.keys.w) ? d : 0; 
+	forward -= UTIL.keyIsDown(UTIL.keys.s) ? d : 0; 
+	spin += UTIL.keyIsDown(UTIL.keys.a) ? 2 * Math.PI * d : 0; 
+	spin -= UTIL.keyIsDown(UTIL.keys.d) ? 2 * Math.PI * d : 0; 
+
+	vec3.add(camPos, [forward * camNormal[0], 0, forward * camNormal[2]]); 
 
 	var matRot = mat4.identity(); 
-	mat4.rotateY(matRot, -padX2); 
-	mat4.rotateX(matRot, -padY2); 
+	mat4.rotateY(matRot, spin); 
+	mat4.rotateX(matRot, padY2); 
 	mat4.multiplyVec3(matRot, camNormal); 
 
 	return camera; 

@@ -12,6 +12,7 @@ var WebGLDebugUtils = function() {
  */
 var log = function(msg) {
   if (window.console && window.console.log) {
+	throw msg; 
     window.console.log(msg);
   }
 };

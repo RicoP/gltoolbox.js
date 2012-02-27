@@ -1,7 +1,4 @@
 module.createCube = function (gl, projection) { 
-    var vPositionIndx = 0; 
-    var vColorIndx = 1; 
-    var vTransIndx = 2; 
 	var modelview = mat4.identity();
 	var alphax = 0; 
 	var alphay = 0; 
@@ -26,95 +23,72 @@ module.createCube = function (gl, projection) {
 
 	//Shader linked
 	//Tauschen? 
-    gl.bindAttribLocation(program, vPositionIndx, "vPosition"); 
-
     gl.useProgram(program); 
 
     //Vertices
 	var objSource = UTIL.getSource("teapot.obj"); 
-    var cube = UTIL.parseObjData(objSource);  
-    var vertices = cube.vertices; 
-	var indices = cube.indices; 
-	/*var vertices = new Float32Array([  
-		-1, -1, -1, 
-		-1, -1,  1, 
-		-1,  1,  1, 
-		-1,  1, -1, 
-		 1, -1, -1, 
-		 1, -1,  1, 
-		 1,  1,  1, 
-		 1,  1, -1
-	]); */
-    //var texCoords = cube.texCoords; 
+    //var obj = UTIL.parseObjData(objSource);  
+    var obj = UTIL.createCube();  
 
-    var posbuffer = gl.createBuffer(); 
+	
+    var vertices = obj.vertices; 
+	var indices = obj.indices; 
+	var normals = obj.normals; 
 
-    gl.bindBuffer(gl.ARRAY_BUFFER, posbuffer);
+	//----
+    var vertexBuffer = gl.createBuffer(); 
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
     gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW);
 
-    posbuffer.num = vertices.length / 4; 
+    var vertexBufferElements = vertices.length / 4; 
 
-    gl.vertexAttribPointer(vPositionIndx, 4, gl.FLOAT, false, 0, 0); 
-    gl.enableVertexAttribArray(vPositionIndx); 
+	var aVertexIndex = gl.getAttribLocation(program, "aVertex"); 
+	if(aVertexIndex === -1) {
+		throw new Error("aVertex does not exist."); 
+	}
+    gl.vertexAttribPointer(aVertexIndex, 4, gl.FLOAT, false, 0, 0); 
+    gl.enableVertexAttribArray(aVertexIndex); 
+	//----
 
-	/*cubeVertexIndexBuffer = gl.createBuffer();
-        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, cubeVertexIndexBuffer);
-        var cubeVertexIndices = [
-            0, 1, 2,      0, 2, 3,    // Front face
-            4, 5, 6,      4, 6, 7,    // Back face
-            8, 9, 10,     8, 10, 11,  // Top face
-            12, 13, 14,   12, 14, 15, // Bottom face
-            16, 17, 18,   16, 18, 19, // Right face
-            20, 21, 22,   20, 22, 23  // Left face
-        ];
-        gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(cubeVertexIndices), gl.STATIC_DRAW);
-        cubeVertexIndexBuffer.itemSize = 1;
-        cubeVertexIndexBuffer.numItems = 36;*/
-	/*var indices = new Uint16Array([ 
-		0, 7, 3, 
-		0, 4, 7, 
-		0, 1, 2, 
-		0, 2, 3, 
-		1, 4, 0, 
-		1, 5, 4, 
-		4, 6, 7,
-		4, 5, 6,
-		5, 1, 2,
-		5, 2, 6
-	]);*/
+	//----
+	/*
+    var normalBuffer = gl.createBuffer(); 
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, normals, gl.STATIC_DRAW);
+
+    var normalBufferSize = normals.length / 4; 
+
+	var normalBufferIndex = gl.getAttribLocation(program, "aNormal"); 
+	if(normalBufferIndex === -1) {
+		throw new Error("aNormal does not exist."); 
+	}
+    gl.vertexAttribPointer(normalBufferIndex, 4, gl.FLOAT, false, 0, 0); 
+    gl.enableVertexAttribArray(normalBufferIndex); 
+	*/ 
+	//----
 
 	var indexBuffer = gl.createBuffer(); 	
-	indexBuffer.num = indices.length; 
+	var indexBufferElements = indices.length; 
 
 	gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
 	gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, indices, gl.STATIC_DRAW); 		
 
-    //Texture
-    /*var texbuffer = gl.createBuffer(); 
-
-    gl.bindBuffer(gl.ARRAY_BUFFER, texbuffer);
-    gl.bufferData(gl.ARRAY_BUFFER, texCoords, gl.STATIC_DRAW);
-
-    gl.vertexAttribPointer(1, 2, gl.FLOAT, false, 0, 0); 
-    gl.enableVertexAttribArray(1); 
-
-    var texture = gl.createTexture(); 
-    var image = new Image(); 
-    image.onload = function() {
-        gl.bindTexture(gl.TEXTURE_2D, texture);
-        gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 1);
-        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-        gl.bindTexture(gl.TEXTURE_2D, null);
-    };
-    image.src = "tex.png"; 
-
-    program.texture = texture; 
-	*/
-
 	return {
 		"draw" : function(camera) {
+			//TEMPORARY VALUES 
+			/*
+			var uCameraPosition = vec3.create([camera[3], camera[7], camera[11]]); 
+			var uLightPosition = vec3.create([0,100,0]); 
+			var uWorldIllum = 0.2; 
+            var uMaterialIllum = 0.4; 
+            var uMaterialDiffus = 0.3;   
+            var uMaterialSpecular = 0.3; 
+            var uLightStrength = 0.5;  
+			*/ 
+			//----
+
 			gl.useProgram(program); 
 
 			mat4.identity(modelview); 
@@ -132,12 +106,48 @@ module.createCube = function (gl, projection) {
 			//mat4.translate(modelview, [0,-0.5,-2]); 
 			//mat4.scale(modelview, [20,1,20]); 
 			//mat4.rotateY(modelview, alpha); 
-					
-			var vModelViewIndx = gl.getUniformLocation(program, "vModelView");
-			gl.uniformMatrix4fv(vModelViewIndx, false, modelview);
+			
+			/*
+uniform mat4 uProjection; 
+uniform vec3 uCameraPosition; 
+uniform vec3 uLightPosition; 
 
-			var vProjectionIndx = gl.getUniformLocation(program, "vProjection");
-			gl.uniformMatrix4fv(vProjectionIndx, false, projection);
+uniform float uWorldIllum; 
+uniform float uMaterialIllum;
+uniform float uMaterialDiffus;  
+uniform float uMaterialSpecular; 
+uniform float uLightStrength; 
+
+uniform mat4 uModelview;
+			*/
+			/*
+			var uProjectionIndex = gl.getUniformLocation(program, "uProjection");
+			gl.uniformMatrix4fv(uProjectionIndex, false, projection);
+
+			var uCameraPositionIndex = gl.getUniformLocation(program, "uCameraPosition");
+			gl.uniform3fv(uCameraPositionIndex, uCameraPosition);
+
+			var uLightPositionIndex = gl.getUniformLocation(program, "uLightPosition");
+			gl.uniform3fv(uLightPositionIndex, uLightPosition); 
+
+			var uWorldIllumIndex = gl.getUniformLocation(program, "uWorldIllum");
+			gl.uniform1f(uWorldIllumIndex, uWorldIllum);
+
+			var uMaterialIllumIndex = gl.getUniformLocation(program, "uMaterialIllum");
+			gl.uniform1f(uMaterialIllumIndex, uMaterialIllum);
+
+			var uMaterialDiffusIndex = gl.getUniformLocation(program, "uMaterialDiffus");
+			gl.uniform1f(uMaterialDiffusIndex, uMaterialDiffus);
+
+			var uMaterialSpecularIndex = gl.getUniformLocation(program, "uMaterialSpecular");
+			gl.uniform1f(uMaterialSpecularIndex, uMaterialSpecular); 
+
+			var uLightStrengthIndex = gl.getUniformLocation(program, "uLightStrength");
+			gl.uniform1f(uLightStrengthIndex, uLightStrength); 
+
+			var uModelViewIndex = gl.getUniformLocation(program, "uModelview");
+			gl.uniformMatrix4fv(uModelViewIndex, false, modelview);
+			*/ 
 
 			//var vEyeIndx = gl.getUniformLocation(program, "vEye");
 			//gl.uniformMatrix4fv(vEyeIndx, false, eye);
@@ -147,13 +157,17 @@ module.createCube = function (gl, projection) {
 			//gl.bindTexture(gl.TEXTURE_2D, program.texture);
 			//gl.uniform1i(fTexIndx, 0);
 
-			gl.bindBuffer(gl.ARRAY_BUFFER, posbuffer); 
-		    gl.vertexAttribPointer(vPositionIndx, 4, gl.FLOAT, false, 0, 0); 
-    		gl.enableVertexAttribArray(vPositionIndx); 
+			gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer); 
+		    gl.vertexAttribPointer(aVertexIndex, 4, gl.FLOAT, false, 0, 0); 
+    		gl.enableVertexAttribArray(aVertexIndex); 
+
+			/*gl.bindBuffer(gl.ARRAY_BUFFER, normalBuffer); 
+		    gl.vertexAttribPointer(normalBufferIndex, 3, gl.FLOAT, false, 0, 0); 
+    		gl.enableVertexAttribArray(normalBufferIndex); */
 	
 			gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);        
 
-        	gl.drawElements(gl.TRIANGLES, indexBuffer.num, gl.UNSIGNED_SHORT, 0);
+        	gl.drawElements(gl.TRIANGLES, indexBufferElements, gl.UNSIGNED_SHORT, 0);
 
 			gl.bindBuffer(gl.ARRAY_BUFFER, null); 
 			gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null);        
