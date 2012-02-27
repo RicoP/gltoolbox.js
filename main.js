@@ -20,17 +20,18 @@ function main() {
 	var camUp = vec3.create([0,1,0]); 
 
     var cube = SHAPES.createCube(gl, projection); 
-    var ground = SHAPES.createGround(gl, projection); 
+    //var ground = SHAPES.createGround(gl, projection); 
 
     UTIL.requestGameFrame(function gameloop(delta) {
-		var camera = calcCamera(delta, camPos, camNormal, camDir, camUp); 
 
         if(isRunning) { 			
+			var camera = calcCamera(delta, camPos, camNormal, camDir, camUp); 
+
 			clear(gl); 
+            //ground.draw(camera);
 			cube.draw(camera); 
-            ground.draw(camera);
+            //ground.update(delta); 
 			cube.update(delta); 
-            ground.update(delta); 
         }
 		
 		if(UTIL.keyWasReleased(UTIL.keys.p)) {
@@ -42,7 +43,7 @@ function main() {
 }
 
 function calcCamera(delta, camPos, camNormal, camDir, camUp) {
-	var d = delta / 1000; 
+	var d = delta; 
 
 	if(UTIL.keyIsDown(UTIL.keys.shift)) {
 		d *= 3; 

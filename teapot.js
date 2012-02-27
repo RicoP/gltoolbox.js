@@ -4,8 +4,8 @@ module.createCube = function (gl, projection) {
 	var alphay = 0; 
 	var position = [0,1,0]; 
 
-    var vShaderSrc = UTIL.getSource("shaderCube.vs");
-    var fShaderSrc = UTIL.getSource("shaderCube.fs");
+    var vShaderSrc = UTIL.getSource("shaderPhong.vs");
+    var fShaderSrc = UTIL.getSource("shaderPhong.fs");
 
     var vertexShader = gl.createShader(gl.VERTEX_SHADER); 
     gl.shaderSource(vertexShader, vShaderSrc); 
@@ -37,36 +37,35 @@ module.createCube = function (gl, projection) {
 
 	//----
     var vertexBuffer = gl.createBuffer(); 
+	var vertexElementSize = 4; 
 
     gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
     gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW);
 
-    var vertexBufferElements = vertices.length / 4; 
+    var vertexBufferElements = vertices.length / vertexElementSize; 
 
 	var aVertexIndex = gl.getAttribLocation(program, "aVertex"); 
 	if(aVertexIndex === -1) {
 		throw new Error("aVertex does not exist."); 
 	}
-    gl.vertexAttribPointer(aVertexIndex, 4, gl.FLOAT, false, 0, 0); 
-    gl.enableVertexAttribArray(aVertexIndex); 
+    gl.vertexAttribPointer(aVertexIndex, vertexElementSize, gl.FLOAT, false, 0, 0); 
 	//----
 
 	//----
-	/*
     var normalBuffer = gl.createBuffer(); 
+	var normalElementSize = 4; 
 
-    gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
+    gl.bindBuffer(gl.ARRAY_BUFFER, normalBuffer);
     gl.bufferData(gl.ARRAY_BUFFER, normals, gl.STATIC_DRAW);
 
-    var normalBufferSize = normals.length / 4; 
+    var normalBufferSize = normals.length / normalElementSize; 
 
-	var normalBufferIndex = gl.getAttribLocation(program, "aNormal"); 
-	if(normalBufferIndex === -1) {
+	var aNormalIndex = gl.getAttribLocation(program, "aNormal"); 
+	if(aNormalIndex === -1) {
 		throw new Error("aNormal does not exist."); 
 	}
-    gl.vertexAttribPointer(normalBufferIndex, 4, gl.FLOAT, false, 0, 0); 
-    gl.enableVertexAttribArray(normalBufferIndex); 
-	*/ 
+    gl.vertexAttribPointer(aNormalIndex, 4, gl.FLOAT, false, 0, 0); 
+    //gl.enableVertexAttribArray(normalBufferIndex); 
 	//----
 
 	var indexBuffer = gl.createBuffer(); 	
@@ -77,29 +76,31 @@ module.createCube = function (gl, projection) {
 
 	return {
 		"draw" : function(camera) {
-			//TEMPORARY VALUES 
-			/*
+			//TEMPORARY VALUES 			
 			var uCameraPosition = vec3.create([camera[3], camera[7], camera[11]]); 
 			var uLightPosition = vec3.create([0,100,0]); 
 			var uWorldIllum = 0.2; 
             var uMaterialIllum = 0.4; 
             var uMaterialDiffus = 0.3;   
             var uMaterialSpecular = 0.3; 
-            var uLightStrength = 0.5;  
-			*/ 
+            var uLightStrength = 0.5;  		
 			//----
 
 			gl.useProgram(program); 
 
+			//TEST 			
+    		gl.enableVertexAttribArray(aVertexIndex); 
+    		gl.enableVertexAttribArray(aNormalIndex); 
+
 			mat4.identity(modelview); 
 
-			mat4.multiply(modelview, camera);  
+			mat4.multiply(modelview, camera); 
 
 			mat4.translate(modelview, position); 
 			mat4.rotateY(modelview, alphax); 
 			mat4.rotateX(modelview, alphay); 
-			var s = 1 / 40; 
-			mat4.scale(modelview, [s,s,s]);  
+			//var s = 1 / 40; 
+			//mat4.scale(modelview, [s,s,s]);  
 
 			//!!! camera = mat4.lookAt(....); 
 			//!!! mat4.multiply(modelview, camera); 
@@ -120,34 +121,33 @@ uniform float uLightStrength;
 
 uniform mat4 uModelview;
 			*/
-			/*
-			var uProjectionIndex = gl.getUniformLocation(program, "uProjection");
+			
+			var uProjectionIndex = gl.getUniformLocation(program, "uProjection") || throwError();
 			gl.uniformMatrix4fv(uProjectionIndex, false, projection);
-
-			var uCameraPositionIndex = gl.getUniformLocation(program, "uCameraPosition");
+			
+			var uCameraPositionIndex = gl.getUniformLocation(program, "uCameraPosition") || throwError();
 			gl.uniform3fv(uCameraPositionIndex, uCameraPosition);
 
-			var uLightPositionIndex = gl.getUniformLocation(program, "uLightPosition");
+			var uLightPositionIndex = gl.getUniformLocation(program, "uLightPosition") || throwError();
 			gl.uniform3fv(uLightPositionIndex, uLightPosition); 
 
-			var uWorldIllumIndex = gl.getUniformLocation(program, "uWorldIllum");
+			var uWorldIllumIndex = gl.getUniformLocation(program, "uWorldIllum") || throwError();
 			gl.uniform1f(uWorldIllumIndex, uWorldIllum);
 
-			var uMaterialIllumIndex = gl.getUniformLocation(program, "uMaterialIllum");
+			var uMaterialIllumIndex = gl.getUniformLocation(program, "uMaterialIllum") || throwError();
 			gl.uniform1f(uMaterialIllumIndex, uMaterialIllum);
 
-			var uMaterialDiffusIndex = gl.getUniformLocation(program, "uMaterialDiffus");
+			var uMaterialDiffusIndex = gl.getUniformLocation(program, "uMaterialDiffus") || throwError();
 			gl.uniform1f(uMaterialDiffusIndex, uMaterialDiffus);
 
-			var uMaterialSpecularIndex = gl.getUniformLocation(program, "uMaterialSpecular");
+			var uMaterialSpecularIndex = gl.getUniformLocation(program, "uMaterialSpecular") || throwError();
 			gl.uniform1f(uMaterialSpecularIndex, uMaterialSpecular); 
 
-			var uLightStrengthIndex = gl.getUniformLocation(program, "uLightStrength");
+			var uLightStrengthIndex = gl.getUniformLocation(program, "uLightStrength") || throwError();
 			gl.uniform1f(uLightStrengthIndex, uLightStrength); 
-
-			var uModelViewIndex = gl.getUniformLocation(program, "uModelview");
-			gl.uniformMatrix4fv(uModelViewIndex, false, modelview);
-			*/ 
+			
+			var uModelViewIndex = gl.getUniformLocation(program, "uModelview") || throwError();
+			gl.uniformMatrix4fv(uModelViewIndex, false, modelview);			
 
 			//var vEyeIndx = gl.getUniformLocation(program, "vEye");
 			//gl.uniformMatrix4fv(vEyeIndx, false, eye);
@@ -158,12 +158,12 @@ uniform mat4 uModelview;
 			//gl.uniform1i(fTexIndx, 0);
 
 			gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer); 
-		    gl.vertexAttribPointer(aVertexIndex, 4, gl.FLOAT, false, 0, 0); 
+		    gl.vertexAttribPointer(aVertexIndex, vertexElementSize, gl.FLOAT, false, 0, 0); 
     		gl.enableVertexAttribArray(aVertexIndex); 
 
-			/*gl.bindBuffer(gl.ARRAY_BUFFER, normalBuffer); 
-		    gl.vertexAttribPointer(normalBufferIndex, 3, gl.FLOAT, false, 0, 0); 
-    		gl.enableVertexAttribArray(normalBufferIndex); */
+			gl.bindBuffer(gl.ARRAY_BUFFER, normalBuffer); 
+		    gl.vertexAttribPointer(aNormalIndex, normalElementSize, gl.FLOAT, false, 0, 0); 
+    		gl.enableVertexAttribArray(aNormalIndex); 
 	
 			gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);        
 
@@ -174,44 +174,32 @@ uniform mat4 uModelview;
 			//gl.drawArrays(gl.TRIANGLES, 0, program.numVertices); 
 			//gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null);        
 		}, 
-		"update" : function(milis) {
-			var a = milis * 2 * Math.PI / 1000;
-			var step = milis / 1000; 
+		"update" : function(secs) {
+			var a = secs * 2 * Math.PI;
+			var step = secs; 
 
-			if(UTIL.keyIsDown(UTIL.keys.a)) { 
+			if(UTIL.keyIsDown(UTIL.keys.j)) { 
 				alphax += a; 
 			}
 
-			if(UTIL.keyIsDown(UTIL.keys.d)) { 
+			if(UTIL.keyIsDown(UTIL.keys.l)) { 
 				alphax -= a; 
 			}			
 
-			if(UTIL.keyIsDown(UTIL.keys.w)) { 
+			if(UTIL.keyIsDown(UTIL.keys.i)) { 
 				alphay += a; 
 			}
 
-			if(UTIL.keyIsDown(UTIL.keys.s)) { 
+			if(UTIL.keyIsDown(UTIL.keys.k)) { 
 				alphay -= a; 
 			}			
 
-			if(UTIL.keyIsDown(UTIL.keys.k)) {
-				position[2] = position[2] + step; 
-			}
-
-			if(UTIL.keyIsDown(UTIL.keys.j)) {
-				position[2] = position[2] - step; 
-			}
-
-			if(UTIL.keyIsDown(UTIL.keys.h)) {
-				position[0] = position[0] + step; 
-			}
-
-			if(UTIL.keyIsDown(UTIL.keys.l)) {
-				position[0] = position[0] - step; 
-			}
-
-			alphax += milis * Math.PI * 2  * 0.2 / 1000; 
-			alphay += milis * Math.PI * 2  * 0.1 / 1000; 
+			alphax += secs * Math.PI * 2  * 0.2; 
+			alphay += secs * Math.PI * 2  * 0.1; 
 		}
 	};	
+
+	function throwError() {
+		throw ":("; 
+	}
 }

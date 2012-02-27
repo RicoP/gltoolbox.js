@@ -172,6 +172,19 @@ function createCube() {
 		-1,  1, -1, 1
 	]); 
 
+	var n = 0.577350269; //sqrt(3) / 3
+
+	var norm = new Float32Array([
+		-n, -n,  n, 0,
+		 n, -n,  n, 0,
+		 n,  n,  n, 0,
+		-n,  n,  n, 0,
+		-n, -n, -n, 0,
+		 n, -n, -n, 0,
+		 n,  n, -n, 0,
+		-n,  n, -n, 0
+	]); 
+
 	var indx = new Uint16Array([
 		0,1,2,
 		0,2,3,
@@ -187,7 +200,7 @@ function createCube() {
 		4,1,0
 	]);
 
-	return { vertices : vert, indices : indx };
+	return { vertices : vert, indices : indx, normals : norm };
 }
 
 function createPlane(level) {
@@ -338,7 +351,7 @@ function requestGameFrame (callback) {
 		if(lastTime === -1) {
 			now = lastTime = Date.now(); 
 		}
-		callback(now - lastTime); 
+		callback((now - lastTime) / 1000.0); 
 		keyfuncs.setOldKeyState(); 
 		lastTime = now; 
 	}); 
@@ -346,16 +359,16 @@ function requestGameFrame (callback) {
 
 return {
 	"requestGameFrame" : requestGameFrame, 
-	"createContext" : createContext,
-	"getSource" : getSource,  
-	"createPlane" : createPlane,
-	"createCube" : createCube, 
-	"parseObjData" : parseObjData, 
-	"keys" : keyfuncs.keys,
-	"keyIsDown" : keyfuncs.keyIsDown, 
-	"keyIsUp" : keyfuncs.keyIsUp, 
-	"keyWasPressed" : keyfuncs.keyWasPressed, 
-	"keyWasReleased" : keyfuncs.keyWasReleased, 
-	"getFirstPad" : joyfuncs.getFirstPad 
+	"createContext"    : createContext,
+	"getSource"        : getSource,  
+	"createPlane"      : createPlane,
+	"createCube"       : createCube, 
+	"parseObjData"     : parseObjData, 
+	"keys"             : keyfuncs.keys,
+	"keyIsDown"        : keyfuncs.keyIsDown, 
+	"keyIsUp"          : keyfuncs.keyIsUp, 
+	"keyWasPressed"    : keyfuncs.keyWasPressed, 
+	"keyWasReleased"   : keyfuncs.keyWasReleased, 
+	"getFirstPad"      : joyfuncs.getFirstPad 
 }; 
 }()); 
