@@ -3556,8 +3556,8 @@ var SHAPES = (function() {
 	
 	    //Vertices
 		var objSource = UTIL.getSource("teapot.obj"); 
-	    //var obj = UTIL.parseObjData(objSource);  
-	    var obj = UTIL.createCube();  
+	    var obj = UTIL.parseObjData(objSource);  
+	    //var obj = UTIL.createCube();  
 	
 		
 	    var vertices = obj.vertices; 
@@ -3607,11 +3607,11 @@ var SHAPES = (function() {
 			"draw" : function(camera) {
 				//TEMPORARY VALUES 			
 				var uCameraPosition = vec3.create([camera[3], camera[7], camera[11]]); 
-				var uLightPosition = vec3.create([0,100,0]); 
-				var uWorldIllum = 0.2; 
-	            var uMaterialIllum = 0.4; 
-	            var uMaterialDiffus = 0.3;   
-	            var uMaterialSpecular = 0.3; 
+				var uLightPosition = vec3.create([100,100,100]); 
+				var uWorldIllum = 0.9; 
+	            var uMaterialIllum = 0.7; 
+	            var uMaterialDiffus = 1.0;   
+	            var uMaterialSpecular = 0.7; 
 	            var uLightStrength = 0.5;  		
 				//----
 	
@@ -3628,8 +3628,8 @@ var SHAPES = (function() {
 				mat4.translate(modelview, position); 
 				mat4.rotateY(modelview, alphax); 
 				mat4.rotateX(modelview, alphay); 
-				//var s = 1 / 40; 
-				//mat4.scale(modelview, [s,s,s]);  
+				var s = 1 / 40; 
+				mat4.scale(modelview, [s,s,s]);  
 	
 				//!!! camera = mat4.lookAt(....); 
 				//!!! mat4.multiply(modelview, camera); 
@@ -3757,9 +3757,10 @@ function main() {
     //var ground = SHAPES.createGround(gl, projection); 
 
     UTIL.requestGameFrame(function gameloop(delta) {
-		var camera = calcCamera(delta, camPos, camNormal, camDir, camUp); 
 
         if(isRunning) { 			
+			var camera = calcCamera(delta, camPos, camNormal, camDir, camUp); 
+
 			clear(gl); 
             //ground.draw(camera);
 			cube.draw(camera); 

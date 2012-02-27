@@ -86,8 +86,8 @@ vec3 calcReflection(vec3 L, vec3 N) {
 }
 
 void main() {
-	vec3 L = uLightPosition - aVertex.xyz; 
-	vec3 N = (uProjection * uModelview * aNormal).xyz; 
+	vec3 L = normalize(uLightPosition - aVertex.xyz); 
+	vec3 N = normalize((uProjection * uModelview * aNormal).xyz); 
 
 	float IAmbient = uWorldIllum * uMaterialIllum; 
 	float IDiffus = calcDiffus(uLightStrength, uMaterialDiffus, L, N); 
