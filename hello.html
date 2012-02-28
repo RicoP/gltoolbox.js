@@ -1,6 +1,68 @@
 <!doctype html> 
 <body bgcolor="grey">
 
+<script type="text/glsl" id="shaderPhong.vs">
+uniform mat4 uProjection; 
+uniform vec3 uCameraPosition; 
+uniform vec3 uLightPosition; 
+
+uniform float uMaterialDiffus;
+uniform float uWorldIllum;
+uniform float uMaterialIllum;
+uniform float uMaterialSpecular; 
+uniform float uLightStrength; 
+
+uniform mat4 uModelview;
+
+attribute vec4 aVertex;
+attribute vec4 aNormal; 
+attribute vec2 aTextureCoordinate; 
+
+varying float intensity; 
+varying vec2 textureCoordinate; 
+
+const float exponent = 64.0; 
+
+float calcDiffus(float Iin, float kDiff, vec3 L, vec3 N) {
+	return Iin * kDiff *  max(0.0, dot(L, N)); 
+}
+
+vec3 calcReflection(vec3 L, vec3 N) {
+	return L - 2.0 * dot(L, N) * N;
+}
+
+void main() {
+	vec4 P = uProjection * uModelview * aVertex; 
+	vec3 L = normalize(uLightPosition - P.xyz); 
+	vec3 N = normalize((uProjection * uModelview * aNormal).xyz); 
+
+	float IAmbient = uWorldIllum * uMaterialIllum; 
+	float IDiffus = calcDiffus(uLightStrength, uMaterialDiffus, L, N); 
+	vec3 R = calcReflection(normalize(uLightPosition), N); 
+	float ISpecular = uLightStrength * uMaterialSpecular * max(0.0, pow(dot(R, uCameraPosition), exponent));
+
+	intensity = IAmbient + IDiffus + ISpecular; 
+	textureCoordinate = aTextureCoordinate; 
+	gl_Position = P; 
+}
+</script> 
+
+<script type="text/glsl" id="shaderPhong.fs">
+precision mediump float;
+
+uniform sampler2D uTexture; 
+
+varying float intensity; 
+varying vec2 textureCoordinate; 
+
+void main() {
+	vec4 color = texture2D(uTexture, textureCoordinate);
+	gl_FragColor = color * intensity; 
+}
+</script> 
+
+
+
 <script type="text/glsl" id="shader.vs">
 attribute vec4 vPosition;
 attribute vec2 vTextureCoord;
@@ -57,96 +119,26 @@ void main() {
 }
 </script> 
 
-<script type="text/glsl" id="shaderPhong.vs">
-uniform mat4 uProjection; 
-uniform vec3 uCameraPosition; 
-uniform vec3 uLightPosition; 
+<script type="text/obj" id="plane.obj">
+g plane 
 
-uniform float uMaterialDiffus;
-uniform float uWorldIllum;
-uniform float uMaterialIllum;
-uniform float uMaterialSpecular; 
-uniform float uLightStrength; 
+v -1 0  1
+v  1 0  1
+v  1 0 -1
+v -1 0 -1
 
-uniform mat4 uModelview;
+vn 0 1 0
+vn 0 1 0
+vn 0 1 0
+vn 0 1 0
 
-attribute vec4 aVertex;
-attribute vec4 aNormal; 
+vt 0 0
+vt 1 0
+vt 1 1
+vt 0 1
 
-varying vec3 color; 
-
-const float exponent = 64.0; 
-
-float calcDiffus(float Iin, float kDiff, vec3 L, vec3 N) {
-	return Iin * kDiff *  max(0.0, dot(L, N)); 
-}
-
-vec3 calcReflection(vec3 L, vec3 N) {
-	return L - 2.0 * dot(L, N) * N;
-}
-
-void main() {
-	vec3 L = normalize(uLightPosition - aVertex.xyz); 
-	vec3 N = normalize((uProjection * uModelview * aNormal).xyz); 
-
-	float IAmbient = uWorldIllum * uMaterialIllum; 
-	float IDiffus = calcDiffus(uLightStrength, uMaterialDiffus, L, N); 
-	vec3 R = calcReflection(normalize(uLightPosition), N); 
-	float ISpecular = uLightStrength * uMaterialSpecular * max(0.0, pow(dot(R, uCameraPosition), exponent));
-
-	vec3 c = vec3(1.0, 0.0, 0.0); 
-
-	color = (IAmbient + IDiffus + ISpecular) * c; 
-	gl_Position = uProjection * uModelview * aVertex; 
-
-}
-</script> 
-
-<script type="text/glsl" id="shaderPhong.fs">
-precision mediump float;
-varying vec3 color;  
- 
-void main() {
-	gl_FragColor = vec4(vec3(color), 1.0);
-}
-</script> 
-
-
-
-<script type="text/obj" id="cube.obj">
-# cube.obj
-#
- 
-g cube
- 
-v  0.0  0.0  0.0
-v  0.0  0.0  1.0
-v  0.0  1.0  0.0
-v  0.0  1.0  1.0
-v  1.0  0.0  0.0
-v  1.0  0.0  1.0
-v  1.0  1.0  0.0
-v  1.0  1.0  1.0
-
-vn  0.0  0.0  1.0
-vn  0.0  0.0 -1.0
-vn  0.0  1.0  0.0
-vn  0.0 -1.0  0.0
-vn  1.0  0.0  0.0
-vn -1.0  0.0  0.0
- 
-f  1//2  7//2  5//2
-f  1//2  3//2  7//2 
-f  1//6  4//6  3//6 
-f  1//6  2//6  4//6 
-f  3//3  8//3  7//3 
-f  3//3  4//3  8//3 
-f  5//5  7//5  8//5 
-f  5//5  8//5  6//5 
-f  1//4  5//4  6//4 
-f  1//4  6//4  2//4 
-f  2//1  6//1  8//1 
-f  2//1  8//1  4//1 
+f 1/1/1 2/2/2 3/3/3
+f 1/1/1 3/3/3 4/4/4 
 </script> 
 
 

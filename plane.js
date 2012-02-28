@@ -1,8 +1,8 @@
-module.createTeapot = function (gl, projection) { 
+module.createPlane = function (gl, projection) { 
 	var modelview = mat4.identity();
 	var alphax = 0; 
 	var alphay = 0; 
-	var position = [0,1,0]; 
+	var position = [0,0,0]; 
 
     var vShaderSrc = UTIL.getSource("shaderPhong.vs");
     var fShaderSrc = UTIL.getSource("shaderPhong.fs");
@@ -26,13 +26,14 @@ module.createTeapot = function (gl, projection) {
     gl.useProgram(program); 
 
     //Vertices
-	var objSource = UTIL.getSource("teapot.obj"); 
+	var objSource = UTIL.getSource("plane.obj"); 
     var obj = UTIL.parseObjData(objSource);  
     //var obj = UTIL.createCube();  
 	
     var vertices = obj.vertices; 
 	var indices = obj.indices; 
 	var normals = obj.normals; 
+	var textureCoords = obj.textureCoordinates; 
 
 	//----
     var vertexBuffer = gl.createBuffer(); 
@@ -49,8 +50,6 @@ module.createTeapot = function (gl, projection) {
 	}
     gl.vertexAttribPointer(aVertexIndex, vertexElementSize, gl.FLOAT, false, 0, 0); 
 	//----
-
-	//----
     var normalBuffer = gl.createBuffer(); 
 	var normalElementSize = 4; 
 
@@ -63,9 +62,34 @@ module.createTeapot = function (gl, projection) {
 	if(aNormalIndex === -1) {
 		throw new Error("aNormal does not exist."); 
 	}
-    gl.vertexAttribPointer(aNormalIndex, 4, gl.FLOAT, false, 0, 0); 
-    //gl.enableVertexAttribArray(normalBufferIndex); 
+    gl.vertexAttribPointer(aNormalIndex, normalElementSize, gl.FLOAT, false, 0, 0); 
 	//----
+	var textureCoordsBuffer = gl.createBuffer(); 
+	var textureCoordsElementSize = 2; 
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, textureCoordsBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, textureCoords, gl.STATIC_DRAW);
+
+    var textureCoordsBufferSize = textureCoords.length / textureCoordsElementSize; 
+
+	var aTextureCoordsIndex = gl.getAttribLocation(program, "aTextureCoordinate"); 
+	if(aTextureCoordsIndex === -1) {
+		throw new Error("aTextureCoordinate does not exist."); 
+	}
+    gl.vertexAttribPointer(aNormalIndex, textureCoordsElementSize, gl.FLOAT, false, 0, 0); 
+	//----
+
+	var texture = gl.createTexture(); 
+	var image = new Image(); 
+	image.onload = function() {
+		gl.bindTexture(gl.TEXTURE_2D, texture);
+        gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+        gl.bindTexture(gl.TEXTURE_2D, null);
+	};
+	image.src = "tex.png"; 
 
 	var indexBuffer = gl.createBuffer(); 	
 	var indexBufferElements = indices.length; 
@@ -98,8 +122,6 @@ module.createTeapot = function (gl, projection) {
 			mat4.translate(modelview, position); 
 			mat4.rotateY(modelview, alphax); 
 			mat4.rotateX(modelview, alphay); 
-			var s = 1 / 40; 
-			mat4.scale(modelview, [s,s,s]);  
 
 			//!!! camera = mat4.lookAt(....); 
 			//!!! mat4.multiply(modelview, camera); 
@@ -148,6 +170,11 @@ uniform mat4 uModelview;
 			var uModelViewIndex = gl.getUniformLocation(program, "uModelview") || throwError();
 			gl.uniformMatrix4fv(uModelViewIndex, false, modelview);			
 
+			var uTextureIndex = gl.getUniformLocation(program, "uTexture") || throwError(); 
+			gl.activeTexture(gl.TEXTURE0); 
+			gl.bindTexture(gl.TEXTURE_2D, texture); 
+			gl.uniform1i(uTextureIndex, 0); 
+
 			//var vEyeIndx = gl.getUniformLocation(program, "vEye");
 			//gl.uniformMatrix4fv(vEyeIndx, false, eye);
 			//var fTexIndx = gl.getUniformLocation(program, "texture");
@@ -163,6 +190,10 @@ uniform mat4 uModelview;
 			gl.bindBuffer(gl.ARRAY_BUFFER, normalBuffer); 
 		    gl.vertexAttribPointer(aNormalIndex, normalElementSize, gl.FLOAT, false, 0, 0); 
     		gl.enableVertexAttribArray(aNormalIndex); 
+
+			gl.bindBuffer(gl.ARRAY_BUFFER, textureCoordsBuffer); 
+		    gl.vertexAttribPointer(aTextureCoordsIndex, textureCoordsElementSize, gl.FLOAT, false, 0, 0); 
+    		gl.enableVertexAttribArray(aTextureCoordsIndex); 
 	
 			gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);        
 

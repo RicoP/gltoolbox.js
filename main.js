@@ -1,7 +1,6 @@
+"use strict"; 
 var gl; 
 
-(function() { 
-"use strict"; 
 //= gl-matrix.js 
 //= util.js
 //= shapes.js  
@@ -19,8 +18,9 @@ function main() {
 	var camDir = vec3.create([0,0,0]); 
 	var camUp = vec3.create([0,1,0]); 
 
-    var cube = SHAPES.createCube(gl, projection); 
+    //var teapot = SHAPES.createTeapot(gl, projection); 
     //var ground = SHAPES.createGround(gl, projection); 
+    var plane = SHAPES.createPlane(gl, projection); 
 
     UTIL.requestGameFrame(function gameloop(delta) {
 
@@ -29,9 +29,11 @@ function main() {
 
 			clear(gl); 
             //ground.draw(camera);
-			cube.draw(camera); 
+			//teapot.draw(camera); 
+			plane.draw(camera); 
             //ground.update(delta); 
-			cube.update(delta); 
+			//teapot.update(delta); 
+			plane.update(delta); 
         }
 		
 		if(UTIL.keyWasReleased(UTIL.keys.p)) {
@@ -83,4 +85,3 @@ function clear(gl) {
 }
 
 window.onload = main; 
-}()); 

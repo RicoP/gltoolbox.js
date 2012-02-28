@@ -1,7 +1,6 @@
+"use strict"; 
 var gl; 
 
-(function() { 
-"use strict"; 
 /**
  * @fileoverview gl-matrix - High performance matrix and vector operations for WebGL
  * @author Brandon Jones
@@ -3287,64 +3286,16 @@ function parseObjData(data) {
 	var lines = data.split("\n"); 
 
 	var vertices = []; 
-	var texcoord = []; 
+	var texcoords = []; 
 	var normals = []; 
 	var indices = []; 
 
 	var line; 
 	var operations = {
-		"v" : function(numbers) {
-			if(numbers.length !== 3) { 
-				throw "vertice needs to be three elements big."; 
-			}
-
-			var a,b,c;
-			a = Number(numbers[0]);
-			b = Number(numbers[1]);
-			c = Number(numbers[2]);
-			
-			vertices.push(a,b,c,1); 
-		},
-		"vn" : function(numbers) {
-			if(numbers.length !== 3) { 
-				throw "normals needs to be three elements big."; 
-			}
-
-			var a,b,c;
-			a = Number(numbers[0]);
-			b = Number(numbers[1]);
-			c = Number(numbers[2]);
-			
-			normals.push(a,b,c,0); 
-		},
-
-		"f" : function processFace(vertices) {
-			if(vertices.length < 3) {
-				throw "Strange amount of vertices in face."; 
-			}
-
-			if(vertices.length > 3) {
-				//let's asume it's convex 
-				for(var n = vertices.length - 1; n !== 1; n--) {
-					processFace([vertices[0], vertices[n-1], vertices[n]]); 
-				}
-				return; 
-			}
-
-			var fa,fb,fc;
-			fa = vertices[0].split(/\//g);
-			fb = vertices[1].split(/\//g);
-			fc = vertices[2].split(/\//g);
-			
-			var fav,fat,fan, fbv,fbt,fbn, fcv,fct,fcn; 
-			fav = fa[0]; 
-			fbv = fb[0]; 
-			fcv = fc[0]; 
-
-			fav && indices.push(Number(fav) -1); 
-			fbv && indices.push(Number(fbv) -1); 
-			fcv && indices.push(Number(fcv) -1); 
-		}
+		"v"  : v,
+		"vn" : vn,
+		"vt" : vt, 
+		"f"  : f	
 	};
 
 	for(var i = 0; i < lines.length; i++) {
@@ -3357,12 +3308,111 @@ function parseObjData(data) {
 		if(opp) opp(elements); 
 	}
 
-	return {
-		"vertices" : new Float32Array(vertices),	
-		"texcoord" : new Float32Array(texcoord),
-		"normals" : new Float32Array(normals), 
-		"indices" : new Uint16Array(indices) 
-	};
+	var ret = { vertices : new Float32Array(vertices) };
+
+	if(texcoords.length !== 0) {
+		if(texcoords.length * 2 !== vertices.length) {
+			throw "Texture coordinates don't match vertices."; 
+		}
+		ret.textureCoordinates = new Float32Array(texcoords);
+	}
+
+	if(normals.length !== 0) {
+		if(normals.length !== vertices.length) {
+			throw "Normals don't match vertices."; 
+		}
+		ret.normals = new Float32Array(normals); 
+	}
+
+	if(indices.length !== 0) {
+		ret.indices = new Uint16Array(indices); 
+	}
+
+	return ret; 
+
+	function f(vertices) {
+		if(vertices.length < 3) {
+			throw "Strange amount of vertices in face."; 
+		}
+
+		if(vertices.length > 3) {
+			//let's asume it's convex 
+			for(var n = vertices.length - 1; n !== 1; n--) {
+				f([vertices[0], vertices[n-1], vertices[n]]); 
+			}
+			return; 
+		}
+
+		var fa,fb,fc;
+		fa = vertices[0].split(/\//g);
+		fb = vertices[1].split(/\//g);
+		fc = vertices[2].split(/\//g);
+			
+		var fav,fat,fan, fbv,fbt,fbn, fcv,fct,fcn; 
+		fav = fa[0]; 
+		fbv = fb[0]; 
+		fcv = fc[0]; 
+
+		fat = fa[1] || fav; 
+		fbt = fb[1] || fbv; 
+		fct = fc[1] || fcv; 
+
+		fan = fa[2] || fav; 
+		fbn = fb[2] || fbv; 
+		fcn = fc[2] || fcv;
+
+		if(!fav || !fbv || !fcv) {
+			throw "wrong Face format"; 
+		}
+
+		if(fav !== fat || fav !== fan || 
+		   fbv !== fbt || fbv !== fbn || 
+		   fcv !== fct || fcv !== fcn) {
+			throw "Texture and Normal Index must correspont with vertex."; 
+		} 
+			
+		indices.push(Number(fav) -1); 
+		indices.push(Number(fbv) -1); 
+		indices.push(Number(fcv) -1); 
+	}
+
+	function v(numbers) {
+		if(numbers.length !== 3) { 
+			throw "vertice needs to be three elements big."; 
+		}
+
+		var a,b,c;
+		a = Number(numbers[0]);
+		b = Number(numbers[1]);
+		c = Number(numbers[2]);
+			
+		vertices.push(a,b,c,1); 
+	}
+
+	function vn(numbers) {
+		if(numbers.length !== 3) { 
+			throw "normals needs to be three elements big."; 
+		}
+
+		var a,b,c;
+		a = Number(numbers[0]);
+		b = Number(numbers[1]);
+		c = Number(numbers[2]);
+			
+		normals.push(a,b,c,0); 
+	}
+
+	function vt(uv) {
+		if(uv.length !== 2) {
+			throw "Texture coordinate needs two parameter."; 
+		}
+
+		var u,v; 
+		u = Number(uv[0]);
+		v = Number(uv[1]);
+
+		texcoords.push(u,v); 
+	}
 }
 
 function requestGameFrame (callback) { 
@@ -3527,7 +3577,7 @@ var SHAPES = (function() {
 	
 	
 
-	module.createCube = function (gl, projection) { 
+	module.createTeapot = function (gl, projection) { 
 		var modelview = mat4.identity();
 		var alphax = 0; 
 		var alphay = 0; 
@@ -3558,7 +3608,6 @@ var SHAPES = (function() {
 		var objSource = UTIL.getSource("teapot.obj"); 
 	    var obj = UTIL.parseObjData(objSource);  
 	    //var obj = UTIL.createCube();  
-	
 		
 	    var vertices = obj.vertices; 
 		var indices = obj.indices; 
@@ -3734,6 +3783,243 @@ var SHAPES = (function() {
 	}
 	
 
+	module.createPlane = function (gl, projection) { 
+		var modelview = mat4.identity();
+		var alphax = 0; 
+		var alphay = 0; 
+		var position = [0,0,0]; 
+	
+	    var vShaderSrc = UTIL.getSource("shaderPhong.vs");
+	    var fShaderSrc = UTIL.getSource("shaderPhong.fs");
+	
+	    var vertexShader = gl.createShader(gl.VERTEX_SHADER); 
+	    gl.shaderSource(vertexShader, vShaderSrc); 
+	    gl.compileShader(vertexShader); 
+	
+	    var fragmentShader = gl.createShader(gl.FRAGMENT_SHADER); 
+	    gl.shaderSource(fragmentShader, fShaderSrc); 
+	    gl.compileShader(fragmentShader); 
+	
+	    var program = gl.createProgram(); 
+	
+	    gl.attachShader(program, vertexShader); 
+	    gl.attachShader(program, fragmentShader); 
+	    gl.linkProgram(program); 
+	
+		//Shader linked
+		//Tauschen? 
+	    gl.useProgram(program); 
+	
+	    //Vertices
+		var objSource = UTIL.getSource("plane.obj"); 
+	    var obj = UTIL.parseObjData(objSource);  
+	    //var obj = UTIL.createCube();  
+		
+	    var vertices = obj.vertices; 
+		var indices = obj.indices; 
+		var normals = obj.normals; 
+		var textureCoords = obj.textureCoordinates; 
+	
+		//----
+	    var vertexBuffer = gl.createBuffer(); 
+		var vertexElementSize = 4; 
+	
+	    gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
+	    gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW);
+	
+	    var vertexBufferElements = vertices.length / vertexElementSize; 
+	
+		var aVertexIndex = gl.getAttribLocation(program, "aVertex"); 
+		if(aVertexIndex === -1) {
+			throw new Error("aVertex does not exist."); 
+		}
+	    gl.vertexAttribPointer(aVertexIndex, vertexElementSize, gl.FLOAT, false, 0, 0); 
+		//----
+	    var normalBuffer = gl.createBuffer(); 
+		var normalElementSize = 4; 
+	
+	    gl.bindBuffer(gl.ARRAY_BUFFER, normalBuffer);
+	    gl.bufferData(gl.ARRAY_BUFFER, normals, gl.STATIC_DRAW);
+	
+	    var normalBufferSize = normals.length / normalElementSize; 
+	
+		var aNormalIndex = gl.getAttribLocation(program, "aNormal"); 
+		if(aNormalIndex === -1) {
+			throw new Error("aNormal does not exist."); 
+		}
+	    gl.vertexAttribPointer(aNormalIndex, normalElementSize, gl.FLOAT, false, 0, 0); 
+		//----
+		var textureCoordsBuffer = gl.createBuffer(); 
+		var textureCoordsElementSize = 2; 
+	
+	    gl.bindBuffer(gl.ARRAY_BUFFER, textureCoordsBuffer);
+	    gl.bufferData(gl.ARRAY_BUFFER, textureCoords, gl.STATIC_DRAW);
+	
+	    var textureCoordsBufferSize = textureCoords.length / textureCoordsElementSize; 
+	
+		var aTextureCoordsIndex = gl.getAttribLocation(program, "aTextureCoordinate"); 
+		if(aTextureCoordsIndex === -1) {
+			throw new Error("aTextureCoordinate does not exist."); 
+		}
+	    gl.vertexAttribPointer(aNormalIndex, textureCoordsElementSize, gl.FLOAT, false, 0, 0); 
+		//----
+	
+		var texture = gl.createTexture(); 
+		var image = new Image(); 
+		image.onload = function() {
+			gl.bindTexture(gl.TEXTURE_2D, texture);
+	        gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+	        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image);
+	        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+	        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+	        gl.bindTexture(gl.TEXTURE_2D, null);
+		};
+		image.src = "tex.png"; 
+	
+		var indexBuffer = gl.createBuffer(); 	
+		var indexBufferElements = indices.length; 
+	
+		gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
+		gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, indices, gl.STATIC_DRAW); 		
+	
+		return {
+			"draw" : function(camera) {
+				//TEMPORARY VALUES 			
+				var uCameraPosition = vec3.create([camera[3], camera[7], camera[11]]); 
+				var uLightPosition = vec3.create([100,100,100]); 
+				var uWorldIllum = 0.9; 
+	            var uMaterialIllum = 0.7; 
+	            var uMaterialDiffus = 1.0;   
+	            var uMaterialSpecular = 0.7; 
+	            var uLightStrength = 0.5;  		
+				//----
+	
+				gl.useProgram(program); 
+	
+				//TEST 			
+	    		gl.enableVertexAttribArray(aVertexIndex); 
+	    		gl.enableVertexAttribArray(aNormalIndex); 
+	
+				mat4.identity(modelview); 
+	
+				mat4.multiply(modelview, camera); 
+	
+				mat4.translate(modelview, position); 
+				mat4.rotateY(modelview, alphax); 
+				mat4.rotateX(modelview, alphay); 
+	
+				//!!! camera = mat4.lookAt(....); 
+				//!!! mat4.multiply(modelview, camera); 
+				//mat4.translate(modelview, [0,-0.5,-2]); 
+				//mat4.scale(modelview, [20,1,20]); 
+				//mat4.rotateY(modelview, alpha); 
+				
+				/*
+	uniform mat4 uProjection; 
+	uniform vec3 uCameraPosition; 
+	uniform vec3 uLightPosition; 
+	
+	uniform float uWorldIllum; 
+	uniform float uMaterialIllum;
+	uniform float uMaterialDiffus;  
+	uniform float uMaterialSpecular; 
+	uniform float uLightStrength; 
+	
+	uniform mat4 uModelview;
+				*/
+				
+				var uProjectionIndex = gl.getUniformLocation(program, "uProjection") || throwError();
+				gl.uniformMatrix4fv(uProjectionIndex, false, projection);
+				
+				var uCameraPositionIndex = gl.getUniformLocation(program, "uCameraPosition") || throwError();
+				gl.uniform3fv(uCameraPositionIndex, uCameraPosition);
+	
+				var uLightPositionIndex = gl.getUniformLocation(program, "uLightPosition") || throwError();
+				gl.uniform3fv(uLightPositionIndex, uLightPosition); 
+	
+				var uWorldIllumIndex = gl.getUniformLocation(program, "uWorldIllum") || throwError();
+				gl.uniform1f(uWorldIllumIndex, uWorldIllum);
+	
+				var uMaterialIllumIndex = gl.getUniformLocation(program, "uMaterialIllum") || throwError();
+				gl.uniform1f(uMaterialIllumIndex, uMaterialIllum);
+	
+				var uMaterialDiffusIndex = gl.getUniformLocation(program, "uMaterialDiffus") || throwError();
+				gl.uniform1f(uMaterialDiffusIndex, uMaterialDiffus);
+	
+				var uMaterialSpecularIndex = gl.getUniformLocation(program, "uMaterialSpecular") || throwError();
+				gl.uniform1f(uMaterialSpecularIndex, uMaterialSpecular); 
+	
+				var uLightStrengthIndex = gl.getUniformLocation(program, "uLightStrength") || throwError();
+				gl.uniform1f(uLightStrengthIndex, uLightStrength); 
+				
+				var uModelViewIndex = gl.getUniformLocation(program, "uModelview") || throwError();
+				gl.uniformMatrix4fv(uModelViewIndex, false, modelview);			
+	
+				var uTextureIndex = gl.getUniformLocation(program, "uTexture") || throwError(); 
+				gl.activeTexture(gl.TEXTURE0); 
+				gl.bindTexture(gl.TEXTURE_2D, texture); 
+				gl.uniform1i(uTextureIndex, 0); 
+	
+				//var vEyeIndx = gl.getUniformLocation(program, "vEye");
+				//gl.uniformMatrix4fv(vEyeIndx, false, eye);
+				//var fTexIndx = gl.getUniformLocation(program, "texture");
+	
+				//gl.activeTexture(gl.TEXTURE0);
+				//gl.bindTexture(gl.TEXTURE_2D, program.texture);
+				//gl.uniform1i(fTexIndx, 0);
+	
+				gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer); 
+			    gl.vertexAttribPointer(aVertexIndex, vertexElementSize, gl.FLOAT, false, 0, 0); 
+	    		gl.enableVertexAttribArray(aVertexIndex); 
+	
+				gl.bindBuffer(gl.ARRAY_BUFFER, normalBuffer); 
+			    gl.vertexAttribPointer(aNormalIndex, normalElementSize, gl.FLOAT, false, 0, 0); 
+	    		gl.enableVertexAttribArray(aNormalIndex); 
+	
+				gl.bindBuffer(gl.ARRAY_BUFFER, textureCoordsBuffer); 
+			    gl.vertexAttribPointer(aTextureCoordsIndex, textureCoordsElementSize, gl.FLOAT, false, 0, 0); 
+	    		gl.enableVertexAttribArray(aTextureCoordsIndex); 
+		
+				gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);        
+	
+	        	gl.drawElements(gl.TRIANGLES, indexBufferElements, gl.UNSIGNED_SHORT, 0);
+	
+				gl.bindBuffer(gl.ARRAY_BUFFER, null); 
+				gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null);        
+				//gl.drawArrays(gl.TRIANGLES, 0, program.numVertices); 
+				//gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null);        
+			}, 
+			"update" : function(secs) {
+				var a = secs * 2 * Math.PI;
+				var step = secs; 
+	
+				if(UTIL.keyIsDown(UTIL.keys.j)) { 
+					alphax += a; 
+				}
+	
+				if(UTIL.keyIsDown(UTIL.keys.l)) { 
+					alphax -= a; 
+				}			
+	
+				if(UTIL.keyIsDown(UTIL.keys.i)) { 
+					alphay += a; 
+				}
+	
+				if(UTIL.keyIsDown(UTIL.keys.k)) { 
+					alphay -= a; 
+				}			
+	
+				alphax += secs * Math.PI * 2  * 0.2; 
+				alphay += secs * Math.PI * 2  * 0.1; 
+			}
+		};	
+	
+		function throwError() {
+			throw ":("; 
+		}
+	}
+	
+
 
 	return module; 
 }());
@@ -3753,8 +4039,9 @@ function main() {
 	var camDir = vec3.create([0,0,0]); 
 	var camUp = vec3.create([0,1,0]); 
 
-    var cube = SHAPES.createCube(gl, projection); 
+    //var teapot = SHAPES.createTeapot(gl, projection); 
     //var ground = SHAPES.createGround(gl, projection); 
+    var plane = SHAPES.createPlane(gl, projection); 
 
     UTIL.requestGameFrame(function gameloop(delta) {
 
@@ -3763,9 +4050,11 @@ function main() {
 
 			clear(gl); 
             //ground.draw(camera);
-			cube.draw(camera); 
+			//teapot.draw(camera); 
+			plane.draw(camera); 
             //ground.update(delta); 
-			cube.update(delta); 
+			//teapot.update(delta); 
+			plane.update(delta); 
         }
 		
 		if(UTIL.keyWasReleased(UTIL.keys.p)) {
@@ -3817,5 +4106,4 @@ function clear(gl) {
 }
 
 window.onload = main; 
-}()); 
 

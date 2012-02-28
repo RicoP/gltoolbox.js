@@ -3,6 +3,7 @@ var SHAPES = (function() {
 
 	//= ground.js
 	//= teapot.js 
+	//= plane.js 
 
 	return module; 
 }());
