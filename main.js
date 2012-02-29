@@ -11,7 +11,6 @@ var isRunning = true;
 
 function main() {
     gl = UTIL.createContext(640, 480); 
-	var lastTime = Date.now(); 
 
 	var camPos = vec3.create([0,1,2]);
 	var camNormal = vec3.create([0,0,-1]); 
@@ -22,8 +21,9 @@ function main() {
     //var ground = SHAPES.createGround(gl, projection); 
     var plane = SHAPES.createPlane(gl, projection); 
 
-    UTIL.requestGameFrame(function gameloop(delta) {
+	UTIL.requestGameLoop(gameloop); 
 
+    function gameloop(info) {
         if(isRunning) { 			
 			var camera = calcCamera(delta, camPos, camNormal, camDir, camUp); 
 
@@ -31,17 +31,17 @@ function main() {
             //ground.draw(camera);
 			//teapot.draw(camera); 
 			plane.draw(camera); 
-            //ground.update(delta); 
-			//teapot.update(delta); 
-			plane.update(delta); 
+            //ground.update(info.time.delta); 
+			//teapot.update(info.time.delta); 
+			plane.update(info.time.delta); 
         }
 		
-		if(UTIL.keyWasReleased(UTIL.keys.p)) {
+		if(UTIL.key.wasReleased(UTIL.key.codes.p)) {
 			isRunning = !isRunning; 
 		}
 
         UTIL.requestGameFrame(gameloop); 
-    });
+    }
 }
 
 function calcCamera(delta, camPos, camNormal, camDir, camUp) {
