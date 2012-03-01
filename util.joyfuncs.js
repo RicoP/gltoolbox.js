@@ -40,7 +40,7 @@ var joyfuncs = (function () {
 		return NONE;  
 	}
 
-	function getPirstPad() {
+	function getFirstPad() {
 		return pad; 
 	}
 

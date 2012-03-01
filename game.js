@@ -1912,6 +1912,9 @@ quat4.str = function (quat) {
 
 
 
+var UTIL = (function() {
+"use strict"; 
+
 /*
 Copyright (c) 2012 Rico Possienka 
 
@@ -3019,21 +3022,6 @@ return {
 
 
 
-
-var UTIL = (function() {
-"use strict"; 
-
-var lastTime = -1; 
-
-var raf = window.requestAnimationFrame       || 
-		  window.webkitRequestAnimationFrame || 
-		  window.mozRequestAnimationFrame    || 
-		  window.oRequestAnimationFrame      || 
-		  window.msRequestAnimationFrame     || 
-		  function( callback ){
-			  window.setTimeout(callback, 1000 / 60);
-		  };
-
 var keyfuncs = (function() {
 	var keysDown = new Uint8Array(256); 
 	var keysDownOld = new Uint8Array(256); 
@@ -3111,6 +3099,8 @@ var keyfuncs = (function() {
 }());
 
 
+
+
 var joyfuncs = (function () {
 	var gamepads = navigator.webkitGamepads || navigator.mozGamepads || navigator.gamepads || [];
 	var e = 0.2; 
@@ -3118,18 +3108,23 @@ var joyfuncs = (function () {
 	var edge1 = 1 - e; 
 
 	var NONE = {
-		"axes" : [0,0,0,0], 
-		"buttons" : [0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0], 
+		"axes" : new Float32Array(6), 
+		"buttons" : new Float32Array(24), 
 		"id" : "NONE", 
 		"index" : -1 
 	}; 
 
-	function getFirstPad() {
-		var axes = [0,0,0,0];
-		
+	var pad = NONE; 
+
+	function update() {
+		pad = updateFirstPad(); 		
+	}
+
+	function updateFirstPad() {
 		for (var i = 0; i < gamepads.length; ++i) {
 			var pad = gamepads[i];
 			if(pad) {
+				var axes = new Float32Array(pad.axes.length); 
 				for(var a = 0; a < pad.axes.length; a++) { 
 					if(pad.axes[a]) { 
 						axes[a] = normalise(pad.axes[a]);
@@ -3148,6 +3143,10 @@ var joyfuncs = (function () {
 		return NONE;  
 	}
 
+	function getFirstPad() {
+		return pad; 
+	}
+
 	function normalise(x) {
 		if(x < 0) {
 			return -normalise(-x); 
@@ -3159,17 +3158,173 @@ var joyfuncs = (function () {
 	}
 
 	return {
+		"update" : update, 
 		"getFirstPad" : getFirstPad  
 	};
 }());  
 
-function createContext(width, height) { 
-		var canvas = document.createElement("canvas"); 
+
+
+var objparse = (function() { 
+	function parse(data) {
+		var lines = data.split("\n"); 
+	
+		var vertices = []; 
+		var texcoords = []; 
+		var normals = []; 
+		var indices = []; 
+
+		var line; 
+		var operations = {
+			"v"  : v,
+			"vn" : vn,
+			"vt" : vt, 
+			"f"  : f	
+		};
+	
+		for(var i = 0; i < lines.length; i++) {
+			line = lines[i].trim(); 
+			var elements = line.split(/[\t\r\n ]+/g);
+			var head = elements.shift(); 
+		
+			var opp = operations[head]; 
+	
+			if(opp) opp(elements); 
+		}
+	
+		var ret = { vertices : new Float32Array(vertices) };
+	
+		if(texcoords.length !== 0) {
+		if(texcoords.length * 2 !== vertices.length) {
+				throw "Texture coordinates don't match vertices."; 
+			}
+			ret.textureCoordinates = new Float32Array(texcoords);
+		}
+	
+		if(normals.length !== 0) {
+			if(normals.length !== vertices.length) {
+				throw "Normals don't match vertices."; 
+			}
+			ret.normals = new Float32Array(normals); 
+		}
+	
+		if(indices.length !== 0) {
+			ret.indices = new Uint16Array(indices); 
+		}
+	
+		return ret; 
+	
+		function f(vertices) {
+			if(vertices.length < 3) {
+				throw "Strange amount of vertices in face."; 
+			}
+
+			if(vertices.length > 3) {
+				//let's asume it's convex 
+				for(var n = vertices.length - 1; n !== 1; n--) {
+					f([vertices[0], vertices[n-1], vertices[n]]); 
+				}
+				return; 
+			}
+	
+			var fa,fb,fc;
+			fa = vertices[0].split(/\//g);
+			fb = vertices[1].split(/\//g);
+			fc = vertices[2].split(/\//g);
+					
+			var fav,fat,fan, fbv,fbt,fbn, fcv,fct,fcn; 
+			fav = fa[0]; 
+			fbv = fb[0]; 
+			fcv = fc[0]; 
+	
+			fat = fa[1] || fav; 
+			fbt = fb[1] || fbv; 
+			fct = fc[1] || fcv; 
+	
+			fan = fa[2] || fav; 
+			fbn = fb[2] || fbv; 
+			fcn = fc[2] || fcv;
+	
+			if(!fav || !fbv || !fcv) {
+				throw "wrong Face format"; 
+			}
+	
+			if(fav !== fat || fav !== fan || 
+			   fbv !== fbt || fbv !== fbn || 
+			   fcv !== fct || fcv !== fcn) {
+				throw "Texture and Normal Index must correspont with vertex."; 
+			} 
+				
+			indices.push(Number(fav) -1); 
+			indices.push(Number(fbv) -1); 
+			indices.push(Number(fcv) -1); 
+		}
+	
+		function v(numbers) {
+			if(numbers.length !== 3) { 
+				throw "vertice needs to be three elements big."; 
+			}
+	
+			var a,b,c;
+			a = Number(numbers[0]);
+			b = Number(numbers[1]);
+			c = Number(numbers[2]);
+				
+			vertices.push(a,b,c,1); 
+		}
+
+		function vn(numbers) {
+			if(numbers.length !== 3) { 
+				throw "normals needs to be three elements big."; 
+			}
+	
+			var a,b,c;
+			a = Number(numbers[0]);
+			b = Number(numbers[1]);
+			c = Number(numbers[2]);
+				
+			normals.push(a,b,c,0); 
+		}
+
+		function vt(uv) {
+			if(uv.length !== 2) {
+				throw "Texture coordinate needs two parameter."; 
+			}
+
+			var u,v; 
+			u = Number(uv[0]);
+			v = Number(uv[1]);
+	
+			texcoords.push(u,v); 
+		}
+	}	
+
+	return {
+		"parse" : parse 
+	};
+}()); 
+
+
+
+var requestAnimationFrame = 
+	window.requestAnimationFrame       || 
+	window.webkitRequestAnimationFrame || 
+	window.mozRequestAnimationFrame    || 
+	window.oRequestAnimationFrame      || 
+	window.msRequestAnimationFrame     || 
+	function( callback ){
+		window.setTimeout(callback, 1000 / 60);
+	};
+
+function createContext(width, height, node) { 	
+		var canvas;
+		node = node || document.body;  
+		canvas = document.createElement("canvas"); 
 		canvas.width = width; 
 		canvas.height = height; 
-		document.body.appendChild(canvas); 
+		node.appendChild(canvas); 
 
-		var gl = WebGLDebugUtils.makeDebugContext(canvas.getContext("experimental-webgl", {alpa : false, preserveDrawingBuffer : true}).getSafeContext()); 
+		var gl = WebGLDebugUtils.makeDebugContext(canvas.getContext("experimental-webgl", {alpha : false, preserveDrawingBuffer : true}).getSafeContext()); 
 
 		return gl; 
 }
@@ -3282,164 +3437,100 @@ function createPlane(level) {
     }
 }
 
-function parseObjData(data) {
-	var lines = data.split("\n"); 
+var requestGameFrame = (function() {
+	var starttime = -1; 
+	var lasttime = 0;
+	var frame = 0; 
+	var delta = 0; 
+	var total = 0; 
 
-	var vertices = []; 
-	var texcoords = []; 
-	var normals = []; 
-	var indices = []; 
-
-	var line; 
-	var operations = {
-		"v"  : v,
-		"vn" : vn,
-		"vt" : vt, 
-		"f"  : f	
+	var time = {
+		get "delta"() { return delta; }, 
+		get "total"() { return total; } 
 	};
 
-	for(var i = 0; i < lines.length; i++) {
-		line = lines[i].trim(); 
-		var elements = line.split(/[\t\r\n ]+/g);
-		var head = elements.shift(); 
-		
-		var opp = operations[head]; 
-
-		if(opp) opp(elements); 
+	var loopObject = {
+		get "time"() { return time; },
+		get "frame"() { return frame; }, 
+		get "reset"() { return reset;}
+	};
+	
+	function reset() {
+		starttime = -1;  
 	}
 
-	var ret = { vertices : new Float32Array(vertices) };
-
-	if(texcoords.length !== 0) {
-		if(texcoords.length * 2 !== vertices.length) {
-			throw "Texture coordinates don't match vertices."; 
-		}
-		ret.textureCoordinates = new Float32Array(texcoords);
-	}
-
-	if(normals.length !== 0) {
-		if(normals.length !== vertices.length) {
-			throw "Normals don't match vertices."; 
-		}
-		ret.normals = new Float32Array(normals); 
-	}
-
-	if(indices.length !== 0) {
-		ret.indices = new Uint16Array(indices); 
-	}
-
-	return ret; 
-
-	function f(vertices) {
-		if(vertices.length < 3) {
-			throw "Strange amount of vertices in face."; 
-		}
-
-		if(vertices.length > 3) {
-			//let's asume it's convex 
-			for(var n = vertices.length - 1; n !== 1; n--) {
-				f([vertices[0], vertices[n-1], vertices[n]]); 
+	return function (callback) { 
+		requestAnimationFrame(function () {
+			var now = Date.now(); 
+			if(starttime === -1) {
+				lasttime = now;
+				starttime = now; 
+				frame = 0; 
 			}
-			return; 
-		}
 
-		var fa,fb,fc;
-		fa = vertices[0].split(/\//g);
-		fb = vertices[1].split(/\//g);
-		fc = vertices[2].split(/\//g);
-			
-		var fav,fat,fan, fbv,fbt,fbn, fcv,fct,fcn; 
-		fav = fa[0]; 
-		fbv = fb[0]; 
-		fcv = fc[0]; 
+			delta = (now - lasttime) / 1000.0; 
+			total = (now - starttime) / 1000.0; 
 
-		fat = fa[1] || fav; 
-		fbt = fb[1] || fbv; 
-		fct = fc[1] || fcv; 
+			joyfuncs.update(); 
 
-		fan = fa[2] || fav; 
-		fbn = fb[2] || fbv; 
-		fcn = fc[2] || fcv;
+			callback(loopObject); 
 
-		if(!fav || !fbv || !fcv) {
-			throw "wrong Face format"; 
-		}
+			keyfuncs.setOldKeyState(); 
+			lasttime = now; 
+			frame++;
+		}); 
+	};
+}()); 
 
-		if(fav !== fat || fav !== fan || 
-		   fbv !== fbt || fbv !== fbn || 
-		   fcv !== fct || fcv !== fcn) {
-			throw "Texture and Normal Index must correspont with vertex."; 
-		} 
-			
-		indices.push(Number(fav) -1); 
-		indices.push(Number(fbv) -1); 
-		indices.push(Number(fcv) -1); 
-	}
+var shapes = {
+	get "createPlane"() { return createPlane; }, 
+	get "createCube"() { return createCube; }, 
+};
 
-	function v(numbers) {
-		if(numbers.length !== 3) { 
-			throw "vertice needs to be three elements big."; 
-		}
+// UTIL.keys.x.down
+// UTIL.keys.x.up
+// UTIL.keys.x.pressed
+// UTIL.keys.x.released
 
-		var a,b,c;
-		a = Number(numbers[0]);
-		b = Number(numbers[1]);
-		c = Number(numbers[2]);
-			
-		vertices.push(a,b,c,1); 
-	}
+var keys = {
+	get codes() { return keyfuncs.keys; }, 
+	get isDown() { return keyfuncs.keyisDown; }, 
+	get isUp() { return keyfuncs.keyisUp; }, 
+	get wasPressed() { return keyfuncs.keyWasPressed; }, 
+	get wasReleased() { return keyfuncs.keyWasReleased; } 
+};
 
-	function vn(numbers) {
-		if(numbers.length !== 3) { 
-			throw "normals needs to be three elements big."; 
-		}
+for(var kn in keyfuncs.keys) {
+	(function(keyname, keycode) { 
+		var funcs = {
+			get down() { return keyfuncs.keyIsDown(keycode); },
+			get up() { return keyfuncs.keyIsUp(keycode); },
+			get pressed() { return keyfuncs.keyWasPressed(keycode); },
+			get released() { return keyfuncs.keyWasReleased(keycode); },
+		}; 
 
-		var a,b,c;
-		a = Number(numbers[0]);
-		b = Number(numbers[1]);
-		c = Number(numbers[2]);
-			
-		normals.push(a,b,c,0); 
-	}
+		Object.defineProperty(keys, keyname, {
+			"get" : function() { return funcs; }  
+		});
+	}(kn, keyfuncs.keys[kn])); 
+} 
 
-	function vt(uv) {
-		if(uv.length !== 2) {
-			throw "Texture coordinate needs two parameter."; 
-		}
+var gamepads = {
+	get "first"() { return joyfuncs.getFirstPad(); } 
+};
 
-		var u,v; 
-		u = Number(uv[0]);
-		v = Number(uv[1]);
-
-		texcoords.push(u,v); 
-	}
-}
-
-function requestGameFrame (callback) { 
-	raf(function () {
-		var now = Date.now(); 
-		if(lastTime === -1) {
-			now = lastTime = Date.now(); 
-		}
-		callback((now - lastTime) / 1000.0); 
-		keyfuncs.setOldKeyState(); 
-		lastTime = now; 
-	}); 
+var obj = {
+	get "parse"() { return objparse.parse; }
 }
 
 return {
-	"requestGameFrame" : requestGameFrame, 
-	"createContext"    : createContext,
-	"getSource"        : getSource,  
-	"createPlane"      : createPlane,
-	"createCube"       : createCube, 
-	"parseObjData"     : parseObjData, 
-	"keys"             : keyfuncs.keys,
-	"keyIsDown"        : keyfuncs.keyIsDown, 
-	"keyIsUp"          : keyfuncs.keyIsUp, 
-	"keyWasPressed"    : keyfuncs.keyWasPressed, 
-	"keyWasReleased"   : keyfuncs.keyWasReleased, 
-	"getFirstPad"      : joyfuncs.getFirstPad 
+	get "requestGameFrame"() { return  requestGameFrame; }, 
+	get "createContext"() { return  createContext; },
+	get "getSource"() { return getSource; },  
+	get "shapes"() { return shapes; },
+	get "obj"() { return  obj; }, 
+	get "keys"() { return keys; },
+	get "gamepads"() { return gamepads; }  
 }; 
 }()); 
 
@@ -3812,7 +3903,7 @@ var SHAPES = (function() {
 	
 	    //Vertices
 		var objSource = UTIL.getSource("plane.obj"); 
-	    var obj = UTIL.parseObjData(objSource);  
+	    var obj = UTIL.obj.parse(objSource);  
 	    //var obj = UTIL.createCube();  
 		
 	    var vertices = obj.vertices; 
@@ -3868,7 +3959,7 @@ var SHAPES = (function() {
 		var image = new Image(); 
 		image.onload = function() {
 			gl.bindTexture(gl.TEXTURE_2D, texture);
-	        gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+	        gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 1);
 	        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image);
 	        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
 	        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
@@ -3993,19 +4084,19 @@ var SHAPES = (function() {
 				var a = secs * 2 * Math.PI;
 				var step = secs; 
 	
-				if(UTIL.keyIsDown(UTIL.keys.j)) { 
+				if(UTIL.keys.j.down) { 
 					alphax += a; 
 				}
 	
-				if(UTIL.keyIsDown(UTIL.keys.l)) { 
+				if(UTIL.keys.l.down) { 
 					alphax -= a; 
 				}			
 	
-				if(UTIL.keyIsDown(UTIL.keys.i)) { 
+				if(UTIL.keys.i.down) { 
 					alphay += a; 
 				}
 	
-				if(UTIL.keyIsDown(UTIL.keys.k)) { 
+				if(UTIL.keys.k.down) { 
 					alphay -= a; 
 				}			
 	
@@ -4032,7 +4123,6 @@ var isRunning = true;
 
 function main() {
     gl = UTIL.createContext(640, 480); 
-	var lastTime = Date.now(); 
 
 	var camPos = vec3.create([0,1,2]);
 	var camNormal = vec3.create([0,0,-1]); 
@@ -4043,37 +4133,38 @@ function main() {
     //var ground = SHAPES.createGround(gl, projection); 
     var plane = SHAPES.createPlane(gl, projection); 
 
-    UTIL.requestGameFrame(function gameloop(delta) {
+	UTIL.requestGameFrame(gameloop); 
 
+    function gameloop(info) {
         if(isRunning) { 			
-			var camera = calcCamera(delta, camPos, camNormal, camDir, camUp); 
+			var camera = calcCamera(info.time.delta, camPos, camNormal, camDir, camUp); 
 
 			clear(gl); 
             //ground.draw(camera);
 			//teapot.draw(camera); 
 			plane.draw(camera); 
-            //ground.update(delta); 
-			//teapot.update(delta); 
-			plane.update(delta); 
+            //ground.update(info.time.delta); 
+			//teapot.update(info.time.delta); 
+			plane.update(info.time.delta); 
         }
 		
-		if(UTIL.keyWasReleased(UTIL.keys.p)) {
+		if(UTIL.keys.p.released) {
 			isRunning = !isRunning; 
 		}
 
         UTIL.requestGameFrame(gameloop); 
-    });
+    }
 }
 
 function calcCamera(delta, camPos, camNormal, camDir, camUp) {
 	var d = delta; 
 
-	if(UTIL.keyIsDown(UTIL.keys.shift)) {
+	if(UTIL.keys.shift.down) {
 		d *= 3; 
 	}
 
 	var camera = mat4.lookAt(camPos, vec3.add(camPos, camNormal, camDir), camUp);
-	var pad = UTIL.getFirstPad();  
+	var pad = UTIL.gamepads.first;  
 
 	var padX1 = pad.axes[0]; 
 	var padY1 = pad.axes[1];
@@ -4083,10 +4174,10 @@ function calcCamera(delta, camPos, camNormal, camDir, camUp) {
 	var forward = padY1 * d; 
 	var spin = padX2 * d * 2 * Math.PI; 
 
-	forward += UTIL.keyIsDown(UTIL.keys.w) ? d : 0; 
-	forward -= UTIL.keyIsDown(UTIL.keys.s) ? d : 0; 
-	spin += UTIL.keyIsDown(UTIL.keys.a) ? 2 * Math.PI * d : 0; 
-	spin -= UTIL.keyIsDown(UTIL.keys.d) ? 2 * Math.PI * d : 0; 
+	forward += UTIL.keys.w.down ? d : 0; 
+	forward -= UTIL.keys.s.down ? d : 0; 
+	spin += UTIL.keys.a.down ? 2 * Math.PI * d : 0; 
+	spin -= UTIL.keys.d.down ? 2 * Math.PI * d : 0; 
 
 	vec3.add(camPos, [forward * camNormal[0], 0, forward * camNormal[2]]); 
 

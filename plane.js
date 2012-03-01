@@ -27,7 +27,7 @@ module.createPlane = function (gl, projection) {
 
     //Vertices
 	var objSource = UTIL.getSource("plane.obj"); 
-    var obj = UTIL.parseObjData(objSource);  
+    var obj = UTIL.obj.parse(objSource);  
     //var obj = UTIL.createCube();  
 	
     var vertices = obj.vertices; 
@@ -83,7 +83,7 @@ module.createPlane = function (gl, projection) {
 	var image = new Image(); 
 	image.onload = function() {
 		gl.bindTexture(gl.TEXTURE_2D, texture);
-        gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+        gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 1);
         gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
@@ -208,19 +208,19 @@ uniform mat4 uModelview;
 			var a = secs * 2 * Math.PI;
 			var step = secs; 
 
-			if(UTIL.keyIsDown(UTIL.keys.j)) { 
+			if(UTIL.keys.j.down) { 
 				alphax += a; 
 			}
 
-			if(UTIL.keyIsDown(UTIL.keys.l)) { 
+			if(UTIL.keys.l.down) { 
 				alphax -= a; 
 			}			
 
-			if(UTIL.keyIsDown(UTIL.keys.i)) { 
+			if(UTIL.keys.i.down) { 
 				alphay += a; 
 			}
 
-			if(UTIL.keyIsDown(UTIL.keys.k)) { 
+			if(UTIL.keys.k.down) { 
 				alphay -= a; 
 			}			
 

@@ -1,8 +1,11 @@
-//= glsafecontext.js 
-//= webgl-debug.js  
-
 var UTIL = (function() {
 "use strict"; 
+
+//= glsafecontext.js 
+//= webgl-debug.js  
+//= util.keyfuncs.js 
+//= util.joyfuncs.js 
+//= util.objparse.js 
 
 var requestAnimationFrame = 
 	window.requestAnimationFrame       || 
@@ -13,9 +16,6 @@ var requestAnimationFrame =
 	function( callback ){
 		window.setTimeout(callback, 1000 / 60);
 	};
-
-//= util.keyfuncs.js 
-//= util.joyfuncs.js 
 
 function createContext(width, height, node) { 	
 		var canvas;
@@ -138,153 +138,27 @@ function createPlane(level) {
     }
 }
 
-function parseObjData(data) {
-	var lines = data.split("\n"); 
-
-	var vertices = []; 
-	var texcoords = []; 
-	var normals = []; 
-	var indices = []; 
-
-	var line; 
-	var operations = {
-		"v"  : v,
-		"vn" : vn,
-		"vt" : vt, 
-		"f"  : f	
-	};
-
-	for(var i = 0; i < lines.length; i++) {
-		line = lines[i].trim(); 
-		var elements = line.split(/[\t\r\n ]+/g);
-		var head = elements.shift(); 
-		
-		var opp = operations[head]; 
-
-		if(opp) opp(elements); 
-	}
-
-	var ret = { vertices : new Float32Array(vertices) };
-
-	if(texcoords.length !== 0) {
-		if(texcoords.length * 2 !== vertices.length) {
-			throw "Texture coordinates don't match vertices."; 
-		}
-		ret.textureCoordinates = new Float32Array(texcoords);
-	}
-
-	if(normals.length !== 0) {
-		if(normals.length !== vertices.length) {
-			throw "Normals don't match vertices."; 
-		}
-		ret.normals = new Float32Array(normals); 
-	}
-
-	if(indices.length !== 0) {
-		ret.indices = new Uint16Array(indices); 
-	}
-
-	return ret; 
-
-	function f(vertices) {
-		if(vertices.length < 3) {
-			throw "Strange amount of vertices in face."; 
-		}
-
-		if(vertices.length > 3) {
-			//let's asume it's convex 
-			for(var n = vertices.length - 1; n !== 1; n--) {
-				f([vertices[0], vertices[n-1], vertices[n]]); 
-			}
-			return; 
-		}
-
-		var fa,fb,fc;
-		fa = vertices[0].split(/\//g);
-		fb = vertices[1].split(/\//g);
-		fc = vertices[2].split(/\//g);
-			
-		var fav,fat,fan, fbv,fbt,fbn, fcv,fct,fcn; 
-		fav = fa[0]; 
-		fbv = fb[0]; 
-		fcv = fc[0]; 
-
-		fat = fa[1] || fav; 
-		fbt = fb[1] || fbv; 
-		fct = fc[1] || fcv; 
-
-		fan = fa[2] || fav; 
-		fbn = fb[2] || fbv; 
-		fcn = fc[2] || fcv;
-
-		if(!fav || !fbv || !fcv) {
-			throw "wrong Face format"; 
-		}
-
-		if(fav !== fat || fav !== fan || 
-		   fbv !== fbt || fbv !== fbn || 
-		   fcv !== fct || fcv !== fcn) {
-			throw "Texture and Normal Index must correspont with vertex."; 
-		} 
-			
-		indices.push(Number(fav) -1); 
-		indices.push(Number(fbv) -1); 
-		indices.push(Number(fcv) -1); 
-	}
-
-	function v(numbers) {
-		if(numbers.length !== 3) { 
-			throw "vertice needs to be three elements big."; 
-		}
-
-		var a,b,c;
-		a = Number(numbers[0]);
-		b = Number(numbers[1]);
-		c = Number(numbers[2]);
-			
-		vertices.push(a,b,c,1); 
-	}
-
-	function vn(numbers) {
-		if(numbers.length !== 3) { 
-			throw "normals needs to be three elements big."; 
-		}
-
-		var a,b,c;
-		a = Number(numbers[0]);
-		b = Number(numbers[1]);
-		c = Number(numbers[2]);
-			
-		normals.push(a,b,c,0); 
-	}
-
-	function vt(uv) {
-		if(uv.length !== 2) {
-			throw "Texture coordinate needs two parameter."; 
-		}
-
-		var u,v; 
-		u = Number(uv[0]);
-		v = Number(uv[1]);
-
-		texcoords.push(u,v); 
-	}
-}
-
 var requestGameFrame = (function() {
 	var starttime = -1; 
 	var lasttime = 0;
 	var frame = 0; 
-	var loopObject = {
-		"time" : {
-			"delta" : 0, 
-			"total" : 0
-		},
-		"frame" : 0, 
-		"reset" : function() {
-			starttime = -1; 
-		} 
+	var delta = 0; 
+	var total = 0; 
+
+	var time = {
+		get "delta"() { return delta; }, 
+		get "total"() { return total; } 
 	};
+
+	var loopObject = {
+		get "time"() { return time; },
+		get "frame"() { return frame; }, 
+		get "reset"() { return reset;}
+	};
+	
+	function reset() {
+		starttime = -1;  
+	}
 
 	return function (callback) { 
 		requestAnimationFrame(function () {
@@ -295,9 +169,8 @@ var requestGameFrame = (function() {
 				frame = 0; 
 			}
 
-			loopObject.time.delta = (now - lasttime) / 1000.0; 
-			loopObject.time.total = (now - starttime) / 1000.0; 
-			loopObject.frame = frame++;
+			delta = (now - lasttime) / 1000.0; 
+			total = (now - starttime) / 1000.0; 
 
 			joyfuncs.update(); 
 
@@ -305,28 +178,59 @@ var requestGameFrame = (function() {
 
 			keyfuncs.setOldKeyState(); 
 			lasttime = now; 
+			frame++;
 		}); 
 	};
 }()); 
 
+var shapes = {
+	get "createPlane"() { return createPlane; }, 
+	get "createCube"() { return createCube; }, 
+};
+
+// UTIL.keys.x.down
+// UTIL.keys.x.up
+// UTIL.keys.x.pressed
+// UTIL.keys.x.released
+
+var keys = {
+	get codes() { return keyfuncs.keys; }, 
+	get isDown() { return keyfuncs.keyisDown; }, 
+	get isUp() { return keyfuncs.keyisUp; }, 
+	get wasPressed() { return keyfuncs.keyWasPressed; }, 
+	get wasReleased() { return keyfuncs.keyWasReleased; } 
+};
+
+for(var kn in keyfuncs.keys) {
+	(function(keyname, keycode) { 
+		var funcs = {
+			get down() { return keyfuncs.keyIsDown(keycode); },
+			get up() { return keyfuncs.keyIsUp(keycode); },
+			get pressed() { return keyfuncs.keyWasPressed(keycode); },
+			get released() { return keyfuncs.keyWasReleased(keycode); },
+		}; 
+
+		Object.defineProperty(keys, keyname, {
+			"get" : function() { return funcs; }  
+		});
+	}(kn, keyfuncs.keys[kn])); 
+} 
+
+var gamepads = {
+	get "first"() { return joyfuncs.getFirstPad(); } 
+};
+
+var obj = {
+	get "parse"() { return objparse.parse; }
+}
+
 return {
-	"requestGameFrame" : requestGameFrame, 
-	"createContext"    : createContext,
-	"getSource"        : getSource,  
-	"shapes" : {
-		"createPlane" : createPlane,
-		"createCube"  : createCube, 
-	},
-	"parseObjData"     : parseObjData, 
-	"key" : {
-		"codes"       : keyfuncs.keys, 
-		"isDown"      : keyfuncs.keyIsDown, 
-		"isUp"        : keyfuncs.keyIsUp, 
-		"wasPressed"  : keyfuncs.keyWasPressed, 
-		"wasReleased" : keyfuncs.keyWasReleased
-	},
-	"joy" : {
-		"getFirst" : joyfuncs.getFirstPad 
-	}
+	get "requestGameFrame"() { return  requestGameFrame; }, 
+	get "createContext"() { return  createContext; },
+	get "getSource"() { return getSource; },  
+	get "shapes"() { return shapes; },
+	get "obj"() { return  obj; }, 
+	get "keys"() { return keys; },
+	get "gamepads"() { return gamepads; }  
 }; 
 }()); 

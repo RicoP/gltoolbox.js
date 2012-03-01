@@ -21,11 +21,11 @@ function main() {
     //var ground = SHAPES.createGround(gl, projection); 
     var plane = SHAPES.createPlane(gl, projection); 
 
-	UTIL.requestGameLoop(gameloop); 
+	UTIL.requestGameFrame(gameloop); 
 
     function gameloop(info) {
         if(isRunning) { 			
-			var camera = calcCamera(delta, camPos, camNormal, camDir, camUp); 
+			var camera = calcCamera(info.time.delta, camPos, camNormal, camDir, camUp); 
 
 			clear(gl); 
             //ground.draw(camera);
@@ -36,7 +36,7 @@ function main() {
 			plane.update(info.time.delta); 
         }
 		
-		if(UTIL.key.wasReleased(UTIL.key.codes.p)) {
+		if(UTIL.keys.p.released) {
 			isRunning = !isRunning; 
 		}
 
@@ -47,12 +47,12 @@ function main() {
 function calcCamera(delta, camPos, camNormal, camDir, camUp) {
 	var d = delta; 
 
-	if(UTIL.keyIsDown(UTIL.keys.shift)) {
+	if(UTIL.keys.shift.down) {
 		d *= 3; 
 	}
 
 	var camera = mat4.lookAt(camPos, vec3.add(camPos, camNormal, camDir), camUp);
-	var pad = UTIL.getFirstPad();  
+	var pad = UTIL.gamepads.first;  
 
 	var padX1 = pad.axes[0]; 
 	var padY1 = pad.axes[1];
@@ -62,10 +62,10 @@ function calcCamera(delta, camPos, camNormal, camDir, camUp) {
 	var forward = padY1 * d; 
 	var spin = padX2 * d * 2 * Math.PI; 
 
-	forward += UTIL.keyIsDown(UTIL.keys.w) ? d : 0; 
-	forward -= UTIL.keyIsDown(UTIL.keys.s) ? d : 0; 
-	spin += UTIL.keyIsDown(UTIL.keys.a) ? 2 * Math.PI * d : 0; 
-	spin -= UTIL.keyIsDown(UTIL.keys.d) ? 2 * Math.PI * d : 0; 
+	forward += UTIL.keys.w.down ? d : 0; 
+	forward -= UTIL.keys.s.down ? d : 0; 
+	spin += UTIL.keys.a.down ? 2 * Math.PI * d : 0; 
+	spin -= UTIL.keys.d.down ? 2 * Math.PI * d : 0; 
 
 	vec3.add(camPos, [forward * camNormal[0], 0, forward * camNormal[2]]); 
 
