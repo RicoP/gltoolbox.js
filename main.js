@@ -1,7 +1,7 @@
 "use strict"; 
 var gl; 
 
-//= gl-matrix.js 
+//= lib/gl-matrix/gl-matrix-min.js 
 //= lib/util/util.js
 //= shapes.js  
 
