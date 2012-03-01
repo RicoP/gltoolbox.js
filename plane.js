@@ -89,7 +89,7 @@ module.createPlane = function (gl, projection) {
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
         gl.bindTexture(gl.TEXTURE_2D, null);
 	};
-	image.src = "tex.png"; 
+	image.src = "img/tex.png"; 
 
 	var indexBuffer = gl.createBuffer(); 	
 	var indexBufferElements = indices.length; 
