@@ -2,7 +2,7 @@
 var gl; 
 
 //= gl-matrix.js 
-//= util.js
+//= lib/util/util.js
 //= shapes.js  
 
 // MAIN 
