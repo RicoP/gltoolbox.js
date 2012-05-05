@@ -27,7 +27,7 @@ module.createGround = function (gl, projection) {
     gl.useProgram(program); 
 
     //Vertices
-    var plane = UTIL.createPlane(2); 
+    var plane = UTIL.shapes.createPlane(2); 
     var vertices = plane.vertices; 
     var texCoords = plane.texCoords; 
 
@@ -58,6 +58,7 @@ module.createGround = function (gl, projection) {
     var texture = gl.createTexture(); 
     var image = new Image(); 
     image.onload = function() {
+		console.log("Hallo"); 
         gl.bindTexture(gl.TEXTURE_2D, texture);
         gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 1);
         gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image);
@@ -65,7 +66,7 @@ module.createGround = function (gl, projection) {
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
         gl.bindTexture(gl.TEXTURE_2D, null);
     };
-    image.src = "TxUBCUdirt.png"; 
+    image.src = "tex.png"; 
 
     program.texture = texture; 
 
@@ -115,13 +116,13 @@ module.createGround = function (gl, projection) {
 		"update" : function(milis) {
 			var a = milis * 2 * Math.PI / 1000;
 
-			if(UTIL.keyIsDown(UTIL.keys.q)) { 
+			if(UTIL.keys.q.down) { 
 				alpha += a; 
 			}
 
-			if(UTIL.keyIsDown(UTIL.keys.e)) { 
+			/*if(UTIL.keyIsDown(UTIL.keys.e)) { 
 				alpha -= a; 
-			}
+			}*/
 		}
 	};	
 }

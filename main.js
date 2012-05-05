@@ -18,8 +18,8 @@ function main() {
 	var camUp = vec3.create([0,1,0]); 
 
     //var teapot = SHAPES.createTeapot(gl, projection); 
-    //var ground = SHAPES.createGround(gl, projection); 
-    var plane = SHAPES.createPlane(gl, projection); 
+    var ground = SHAPES.createGround(gl, projection); 
+    //var plane = SHAPES.createPlane(gl, projection); 
 
 	UTIL.requestGameFrame(gameloop); 
 
@@ -28,12 +28,12 @@ function main() {
 			var camera = calcCamera(info.time.delta, camPos, camNormal, camDir, camUp); 
 
 			clear(gl); 
-            //ground.draw(camera);
+            ground.draw(camera);
 			//teapot.draw(camera); 
-			plane.draw(camera); 
-            //ground.update(info.time.delta); 
+			//plane.draw(camera); 
+            ground.update(info.time.delta); 
 			//teapot.update(info.time.delta); 
-			plane.update(info.time.delta); 
+			//plane.update(info.time.delta); 
         }
 		
 		if(UTIL.keys.p.released) {

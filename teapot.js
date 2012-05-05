@@ -27,7 +27,7 @@ module.createTeapot = function (gl, projection) {
 
     //Vertices
 	var objSource = UTIL.getSource("teapot.obj"); 
-    var obj = UTIL.parseObjData(objSource);  
+    var obj = UTIL.obj.parse(objSource);  
     //var obj = UTIL.createCube();  
 	
     var vertices = obj.vertices; 
@@ -177,11 +177,11 @@ uniform mat4 uModelview;
 			var a = secs * 2 * Math.PI;
 			var step = secs; 
 
-			if(UTIL.keyIsDown(UTIL.keys.j)) { 
+			if(UTIL.keys.x.down) { 
 				alphax += a; 
 			}
 
-			if(UTIL.keyIsDown(UTIL.keys.l)) { 
+			/*if(UTIL.keyIsDown(UTIL.keys.l)) { 
 				alphax -= a; 
 			}			
 
@@ -191,7 +191,7 @@ uniform mat4 uModelview;
 
 			if(UTIL.keyIsDown(UTIL.keys.k)) { 
 				alphay -= a; 
-			}			
+			}*/			
 
 			alphax += secs * Math.PI * 2  * 0.2; 
 			alphay += secs * Math.PI * 2  * 0.1; 
