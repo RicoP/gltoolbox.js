@@ -1299,8 +1299,11 @@ var objparse = (function() {
 	
 		var vertices = []; 
 		var texcoords = []; 
-		var normals = []; 
-		var indices = []; 
+		var normals = [];
+ 
+		var indiceVertice = []; 
+		var indiceTexcoords = []; 
+		var indiceNormals = []; 
 
 		var line; 
 		var operations = {
@@ -1318,26 +1321,26 @@ var objparse = (function() {
 			var opp = operations[head]; 
 	
 			if(opp) opp(elements); 
-		}
+		}	
 	
 		var ret = { vertices : new Float32Array(vertices) };
-	
+
 		if(texcoords.length !== 0) {
-		if(texcoords.length * 2 !== vertices.length) {
-				throw "Texture coordinates don't match vertices."; 
+			if(indiceVertice.length !== indiceTexcoords.length) {
+				throw Error("indece Vertex and Texcoords don't match"); 
 			}
-			ret.textureCoordinates = new Float32Array(texcoords);
+			ret.textureCoordinates = makeFlat(indiceVertice, indiceTexcoords, texcoords, 2); 
 		}
 	
 		if(normals.length !== 0) {
-			if(normals.length !== vertices.length) {
-				throw "Normals don't match vertices."; 
+			if(indiceVertice.length !== indiceNormals.length) {
+				throw Error("indece Vertex and Texcoords don't match"); 
 			}
-			ret.normals = new Float32Array(normals); 
+			ret.normals = makeFlat(indiceVertice, indiceNormals, normals, 4); 
 		}
 	
-		if(indices.length !== 0) {
-			ret.indices = new Uint16Array(indices); 
+		if(indiceVertice.length !== 0) {
+			ret.indices = new Uint16Array(indiceVertice); 
 		}
 	
 		return ret; 
@@ -1365,27 +1368,33 @@ var objparse = (function() {
 			fbv = fb[0]; 
 			fcv = fc[0]; 
 	
-			fat = fa[1] || fav; 
-			fbt = fb[1] || fbv; 
-			fct = fc[1] || fcv; 
+			fat = fa[1]; 
+			fbt = fb[1]; 
+			fct = fc[1]; 
 	
-			fan = fa[2] || fav; 
-			fbn = fb[2] || fbv; 
-			fcn = fc[2] || fcv;
+			fan = fa[2]; 
+			fbn = fb[2]; 
+			fcn = fc[2];
 	
 			if(!fav || !fbv || !fcv) {
 				throw "wrong Face format"; 
 			}
-	
-			if(fav !== fat || fav !== fan || 
-			   fbv !== fbt || fbv !== fbn || 
-			   fcv !== fct || fcv !== fcn) {
-				throw "Texture and Normal Index must correspont with vertex."; 
-			} 
 				
-			indices.push(Number(fav) -1); 
-			indices.push(Number(fbv) -1); 
-			indices.push(Number(fcv) -1); 
+			indiceVertice.push(Number(fav) -1); 
+			indiceVertice.push(Number(fbv) -1); 
+			indiceVertice.push(Number(fcv) -1); 
+
+			if(fat && fbt && fct) {
+				indiceTexcoords.push(Number(fat) -1); 
+				indiceTexcoords.push(Number(fbt) -1); 
+				indiceTexcoords.push(Number(fct) -1); 
+			}
+
+			if(fan && fbn && fcn) {
+				indiceNormals.push(Number(fan) -1); 
+				indiceNormals.push(Number(fbn) -1); 
+				indiceNormals.push(Number(fcn) -1); 
+			}
 		}
 	
 		function v(numbers) {
@@ -1430,6 +1439,18 @@ var objparse = (function() {
 	return {
 		"parse" : parse 
 	};
+
+	function makeFlat(indiceFace, indeceOriginBuffer, originBuffer, elementSize) {
+		var newBuffer = new Float32Array(indiceFace.length * elementSize); 
+		for(var iFace = 0; iFace !== indiceFace.length; iFace++) {			
+			var posOriginBuffer = indeceOriginBuffer[indiceFace[iFace]];
+			for(var iElement = 0; iElement !== elementSize; iElement++) {
+				newBuffer[iFace + iElement] = originBuffer[posOriginBuffer + iElement]; 
+			}
+		}
+
+		return newBuffer; 
+	}
 }()); 
 
 
