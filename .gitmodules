@@ -1,0 +1,12 @@
+[submodule "lib/zepto"]
+	path = lib/zepto
+	url = https://github.com/madrobby/zepto.git
+[submodule "lib/glsafecontext.js"]
+	path = lib/glsafecontext.js
+	url = git@github.com:RicoP/glsafecontext.js.git
+[submodule "lib/gl-matrix"]
+	path = lib/gl-matrix
+	url = https://github.com/toji/gl-matrix.git
+[submodule "lib/csg.js"]
+	path = lib/csg.js
+	url = https://github.com/evanw/csg.js.git
