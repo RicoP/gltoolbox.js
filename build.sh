@@ -1,2 +1,3 @@
 #!/bin/sh
-interleave main.js -o game.js
+interleave util/util.js -o util.js 
+

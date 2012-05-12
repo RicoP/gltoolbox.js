@@ -1,8 +1,11 @@
 var UTIL = (function() {
 "use strict"; 
 
-//= ../glsafecontext.js/glsafecontext.js 
-//= ../webgl-debug.js  
+var CSG; 
+
+//= ../lib/csg.js/csg.js 
+//= ../lib/glsafecontext.js/glsafecontext.js 
+//= ../lib/webgl-debug.js  
 //= util.keyfuncs.js 
 //= util.joyfuncs.js 
 //= util.objparse.js 
@@ -237,6 +240,7 @@ return {
 	"shapes" : shapes,
 	"obj" : obj, 
 	"keys" : keys,
-	"gamepads" : gamepads
+	"gamepads" : gamepads,
+	"csg" : CSG
 }; 
 }()); 
