@@ -7,3 +7,6 @@
 [submodule "lib/gl-matrix"]
 	path = lib/gl-matrix
 	url = https://github.com/toji/gl-matrix.git
+[submodule "lib/csg.js"]
+	path = lib/csg.js
+	url = https://github.com/evanw/csg.js.git
