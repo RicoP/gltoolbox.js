@@ -36,17 +36,17 @@ var loadmanager = (function() {
 		var total = files.length; 
 		var filesInLoadingQueue = 0; 
 
-		var resultSet = []; 
+		var result = Object.create(null);  
 	
 		var fileLoaded = function(file, blob) {
 			filesInLoadingQueue++; 
 
-			resultSet.push({"file" : file, "blob" : blob}); 
+			result[file] = blob; 
 
 			update(file, filesInLoadingQueue/total); 
 
 			if(filesInLoadingQueue === total) {
-				finished(resultSet); 
+				finished(result); 
 			}
 		}; 
 
