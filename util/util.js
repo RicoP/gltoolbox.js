@@ -1,14 +1,19 @@
-var UTIL = (function() {
-"use strict"; 
+
+var UTIL = (function() { 
+//declare extern libraries outsite strict mode scope, because they don't pass. 
 
 var CSG; 
-
 //= ../lib/csg.js/csg.js 
 //= ../lib/glsafecontext.js/glsafecontext.js 
 //= ../lib/webgl-debug.js  
+//= ../lib/zepto/dist/zepto.js 
+return (function() {
+"use strict"; 
+
 //= util.keyfuncs.js 
 //= util.joyfuncs.js 
 //= util.objparse.js 
+//= util.loadmanager.js 
 
 var requestAnimationFrame = 
 	window.requestAnimationFrame       || 
@@ -241,6 +246,8 @@ return {
 	"obj" : obj, 
 	"keys" : keys,
 	"gamepads" : gamepads,
-	"csg" : CSG
+	"csg" : CSG, 
+	"loadmanager" : loadmanager 
 }; 
+}());
 }()); 
