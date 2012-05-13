@@ -10,7 +10,41 @@
 </head>
 <body>
 
+<input type="button" onclick="javascript:loadOK();" value="OK" />
+<input type="button" onclick="javascript:loadFail();" value="Fail" />
+
 <script src="../../util.js"></script> 
-<script src="z.js"></script> 
+<script>
+var loadOK = function() { 
+	UTIL.loadmanager.loadFiles({
+		"files" : ["json.json", "sphere.obj", "link.gif"],
+		"update" : function(file, p) {
+			console.log("loaded file " + file + " " + ~~(p*100) + "%"); 
+		},
+		"finished" : function(files) {
+			console.log("files : ", files);  
+		},
+		"error" : function(file, error) {
+			console.log("ERROR at file " + file + " : " + error); 
+		}
+	});
+}
+
+var loadFail = function() { 
+	UTIL.loadmanager.loadFiles({
+		"files" : ["json.json", "sphere.obj", "link.gif", "nope.404"],
+		"update" : function(file, p) {
+			console.log("loaded file " + file + " " + ~~(p*100) + "%"); 
+		},
+		"finished" : function(files) {
+			console.log("files : ", files);  
+		},
+		"error" : function(file, error) {
+			console.log("ERROR at file " + file + " : " + error); 
+		}
+	});
+}
+</script> 
 </body>
 </html>
+
