@@ -2,17 +2,7 @@ var loadmanager = (function() {
 	function nop() {
 	} 
 
-	var loadFilesDefault = {
-		//list of files with schema ["path1", "path2", ...]
-		"files" : [], 
-		//function (lastFileLoaded, percentage [0..1])
-		"update" : nop, 
-		//function ([{file:"file1",blob:"blob1"},{file:"file2",blob:"blob2"},...])
-		"finished" : nop, 
-		//function (file, error)
-		"error" : nop
-	};
-
+	
 	function fileIsPicture(name, callback) {
 		var pictureSuffixe = [".jpg", ".jpeg", ".png", ".gif"]; 
 
@@ -25,13 +15,19 @@ var loadmanager = (function() {
 		callback(false); 
 	}
 
+	//options = {
+	// "files" = ["path1", "path2", ...]
+	// "update" = function (lastFileLoaded, percentage [0..1]
+	// "finished" = function ([{file:"file1",blob:"blob1"},{file:"file2",blob:"blob2"},...])
+	// "error" = function (file, error)
+	//}
 	function loadFiles(options) {
 		if(!options) throw new Error("Passed nothing in loadFiles"); 
 
-		var files    = options.files    || loadFilesDefault.files; 
-		var update   = options.update   || loadFilesDefault.update; 
-		var finished = options.finished || loadFilesDefault.finished; 
-		var error    = options.error    || loadFilesDefault.error; 
+		var files    = options.files    || [];  
+		var update   = options.update   || nop; 
+		var finished = options.finished || nop; 
+		var error    = options.error    || nop; 
 
 		var total = files.length; 
 		var filesInLoadingQueue = 0; 

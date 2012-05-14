@@ -3131,137 +3131,75 @@ var joyfuncs = (function () {
 
 
 var objparse = (function() { 
-	function parse(data) {
-		var lines = data.split("\n"); 
-	
-		var vertices = []; 
-		var texcoords = []; 
-		var normals = []; 
-		var indices = []; 
+	var SIZEOFFLOAT = 4; 
+	var defT = [0,0, 1,0, 0,1]
+	var defN = [1,0,0,0, 0,1,0,0, 0,0,1,0]	
 
-		var line; 
-		var operations = {
-			"v"  : v,
-			"vn" : vn,
-			"vt" : vt, 
-			"f"  : f	
-		};
-	
-		for(var i = 0; i < lines.length; i++) {
-			line = lines[i].trim(); 
-			var elements = line.split(/[\t\r\n ]+/g);
-			var head = elements.shift(); 
+	function parse(text) {
+		var lines = text.split("\n"); 
+		var line = ""; 
+		var linenum = 0; 
 		
-			var opp = operations[head]; 
-	
-			if(opp) opp(elements); 
-		}
-	
-		var ret = { vertices : new Float32Array(vertices) };
-	
-		if(texcoords.length !== 0) {
-		if(texcoords.length * 2 !== vertices.length) {
-				throw "Texture coordinates don't match vertices."; 
-			}
-			ret.textureCoordinates = new Float32Array(texcoords);
-		}
-	
-		if(normals.length !== 0) {
-			if(normals.length !== vertices.length) {
-				throw "Normals don't match vertices."; 
-			}
-			ret.normals = new Float32Array(normals); 
-		}
-	
-		if(indices.length !== 0) {
-			ret.indices = new Uint16Array(indices); 
-		}
-	
-		return ret; 
-	
-		function f(vertices) {
-			if(vertices.length < 3) {
-				throw "Strange amount of vertices in face."; 
-			}
-
-			if(vertices.length > 3) {
-				//let's asume it's convex 
-				for(var n = vertices.length - 1; n !== 1; n--) {
-					f([vertices[0], vertices[n-1], vertices[n]]); 
+		var vertice = []; //[x1,y1,z1,1,x2,y2,z2,1,...]
+		var normals = []; //[x1,y1,z1,0,x2,y2,z2,0,...]
+		var textureuv = []; //[u1,v1,u2,v2,...] 	
+		var indice = []; 
+		
+		var funcs = {
+			"v" : function(s) {
+				if(!s || s.length != 3) {
+					throw new Error("Can't accept Vertic without 3 components. LINE:" + line); 
 				}
-				return; 
-			}
-	
-			var fa,fb,fc;
-			fa = vertices[0].split(/\//g);
-			fb = vertices[1].split(/\//g);
-			fc = vertices[2].split(/\//g);
-					
-			var fav,fat,fan, fbv,fbt,fbn, fcv,fct,fcn; 
-			fav = fa[0]; 
-			fbv = fb[0]; 
-			fcv = fc[0]; 
-	
-			fat = fa[1] || fav; 
-			fbt = fb[1] || fbv; 
-			fct = fc[1] || fcv; 
-	
-			fan = fa[2] || fav; 
-			fbn = fb[2] || fbv; 
-			fcn = fc[2] || fcv;
-	
-			if(!fav || !fbv || !fcv) {
-				throw "wrong Face format"; 
-			}
-	
-			if(fav !== fat || fav !== fan || 
-			   fbv !== fbt || fbv !== fbn || 
-			   fcv !== fct || fcv !== fcn) {
-				throw "Texture and Normal Index must correspont with vertex."; 
-			} 
-				
-			indices.push(Number(fav) -1); 
-			indices.push(Number(fbv) -1); 
-			indices.push(Number(fcv) -1); 
-		}
-	
-		function v(numbers) {
-			if(numbers.length !== 3) { 
-				throw "vertice needs to be three elements big."; 
-			}
-	
-			var a,b,c;
-			a = Number(numbers[0]);
-			b = Number(numbers[1]);
-			c = Number(numbers[2]);
-				
-			vertices.push(a,b,c,1); 
-		}
 
-		function vn(numbers) {
-			if(numbers.length !== 3) { 
-				throw "normals needs to be three elements big."; 
-			}
-	
-			var a,b,c;
-			a = Number(numbers[0]);
-			b = Number(numbers[1]);
-			c = Number(numbers[2]);
-				
-			normals.push(a,b,c,0); 
-		}
+				var x = Number(s[0], 10); 
+				var y = Number(s[1], 10); 
+				var z = Number(s[2], 10); 
 
-		function vt(uv) {
-			if(uv.length !== 2) {
-				throw "Texture coordinate needs two parameter."; 
-			}
+				vertice.push(x,y,z,1); 
+			},
+			"vn" : function(s) {
+				if(!s || s.length != 3) {
+					throw new Error("Can't accept Normal without 3 components. LINE:" + linenum); 
+				}
+		
+				var x = Number(s[0], 10); 
+				var y = Number(s[1], 10); 
+				var z = Number(s[2], 10); 
 
-			var u,v; 
-			u = Number(uv[0]);
-			v = Number(uv[1]);
-	
-			texcoords.push(u,v); 
-		}
+				normals.push(x,y,z,0); 
+			},
+			"vt" : function(s) {
+				if(!s || s.length != 2) {
+					throw new Error("Can't accept Texture without 2 components. LINE:" + linenum); 
+				}
+		
+				var u = Number(s[0], 10); 
+				var v = Number(s[1], 10); 
+
+				textureuv.push(u,v); 
+			},
+			"f" : function(s) {
+				if(!s || s.length != 3) {
+					throw new Error("Can't accept Face without 3 components. LINE:" + linenum); 
+				}
+
+				//TODO				
+			}
+		};
+
+		var rgx = /[\t\r\n ]+/g; 
+
+		for(linenum = 0; linenum != lines.length;) {			
+			line = lines[linenum++].trim();
+			var elements = line.split(rgx);
+			var head = elements.shift(); 
+			if(head in funcs) {
+				funcs[head](elements); 
+			}
+		}	
+
+		//TODO
+		console.log(vertice, textureuv, normals); 
 	}	
 
 	return {
@@ -3269,21 +3207,12 @@ var objparse = (function() {
 	};
 }()); 
 
+
 var loadmanager = (function() { 
 	function nop() {
 	} 
 
-	var loadFilesDefault = {
-		//list of files with schema ["path1", "path2", ...]
-		"files" : [], 
-		//function (lastFileLoaded, percentage [0..1])
-		"update" : nop, 
-		//function ([{file:"file1",blob:"blob1"},{file:"file2",blob:"blob2"},...])
-		"finished" : nop, 
-		//function (file, error)
-		"error" : nop
-	};
-
+	
 	function fileIsPicture(name, callback) {
 		var pictureSuffixe = [".jpg", ".jpeg", ".png", ".gif"]; 
 
@@ -3296,13 +3225,19 @@ var loadmanager = (function() {
 		callback(false); 
 	}
 
+	//options = {
+	// "files" = ["path1", "path2", ...]
+	// "update" = function (lastFileLoaded, percentage [0..1]
+	// "finished" = function ([{file:"file1",blob:"blob1"},{file:"file2",blob:"blob2"},...])
+	// "error" = function (file, error)
+	//}
 	function loadFiles(options) {
 		if(!options) throw new Error("Passed nothing in loadFiles"); 
 
-		var files    = options.files    || loadFilesDefault.files; 
-		var update   = options.update   || loadFilesDefault.update; 
-		var finished = options.finished || loadFilesDefault.finished; 
-		var error    = options.error    || loadFilesDefault.error; 
+		var files    = options.files    || [];  
+		var update   = options.update   || nop; 
+		var finished = options.finished || nop; 
+		var error    = options.error    || nop; 
 
 		var total = files.length; 
 		var filesInLoadingQueue = 0; 
