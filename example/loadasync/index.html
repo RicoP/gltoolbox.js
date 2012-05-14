@@ -17,7 +17,7 @@
 <script>
 var loadOK = function() { 
 	UTIL.loadmanager.loadFiles({
-		"files" : ["json.json", "sphere.obj", "link.gif"],
+		"files" : ["json.json", "sphere.obj", "tux.png"],
 		"update" : function(file, p) {
 			console.log("loaded file " + file + " " + ~~(p*100) + "%"); 
 		},
@@ -32,7 +32,7 @@ var loadOK = function() {
 
 var loadFail = function() { 
 	UTIL.loadmanager.loadFiles({
-		"files" : ["json.json", "sphere.obj", "link.gif", "nope.404"],
+		"files" : ["json.json", "sphere.obj", "tux.png", "nope.404"],
 		"update" : function(file, p) {
 			console.log("loaded file " + file + " " + ~~(p*100) + "%"); 
 		},
