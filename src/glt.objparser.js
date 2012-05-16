@@ -1,4 +1,6 @@
-var objparse = (function() { 
+(function(GLT) { 
+	"use strict"; 
+
 	var SIZEOFFLOAT = 4; 
 	var defT = [0,0, 1,0, 0,1]
 	var defN = [1,0,0,0, 0,1,0,0, 0,0,1,0]	
@@ -70,7 +72,6 @@ var objparse = (function() {
 		console.log(vertice, textureuv, normals); 
 	}	
 
-	return {
-		"parse" : parse 
-	};
-}()); 
+	GLT.objparser = {};
+	GLT.objparser.parse = parse; 
+}(GLT)); 

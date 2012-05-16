@@ -13,10 +13,10 @@
 <input type="button" onclick="javascript:loadOK();" value="OK" />
 <input type="button" onclick="javascript:loadFail();" value="Fail" />
 
-<script src="../../util.js"></script> 
+<script src="../../glt.js"></script> 
 <script>
 var loadOK = function() { 
-	UTIL.loadmanager.loadFiles({
+	GLT.loadmanager.loadFiles({
 		"files" : ["json.json", "sphere.obj", "tux.png"],
 		"update" : function(file, p) {
 			console.log("loaded file " + file + " " + ~~(p*100) + "%"); 
@@ -31,7 +31,7 @@ var loadOK = function() {
 }
 
 var loadFail = function() { 
-	UTIL.loadmanager.loadFiles({
+	GLT.loadmanager.loadFiles({
 		"files" : ["json.json", "sphere.obj", "tux.png", "nope.404"],
 		"update" : function(file, p) {
 			console.log("loaded file " + file + " " + ~~(p*100) + "%"); 

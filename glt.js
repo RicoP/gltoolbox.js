@@ -1,8 +1,4 @@
 
-var UTIL = (function() { 
-//declare extern libraries outsite strict mode scope, because they don't pass. 
-
-var CSG; 
 // Constructive Solid Geometry (CSG) is a modeling technique that uses Boolean
 // operations like union and intersection to combine 3D solids. This library
 // implements CSG operations on meshes elegantly and concisely using BSP trees,
@@ -598,8 +594,6 @@ CSG.Node.prototype = {
     }
   }
 };
-
-
 /*
 Copyright (c) 2012 Rico Possienka 
 
@@ -901,8 +895,6 @@ if(window["WebGLRenderingContext"]) {
 		return function(option) { return safeContext(this, option); }; 
 	}()); 
 }
-
-
 
 //Copyright (c) 2009 The Chromium Authors. All rights reserved.
 //Use of this source code is governed by a BSD-style license that can be
@@ -1704,8 +1696,6 @@ return {
 };
 
 }();
-
-
 
 /* Zepto v1.0rc1-16-g04cfc12 - polyfill zepto event detect fx ajax form - zeptojs.com/license */
 ;(function(undefined){
@@ -2982,91 +2972,76 @@ window.Zepto = Zepto
   }
 
 })(Zepto)
+var GLT = {}; 
 
-
-return (function() {
+(function(GLT) {
 "use strict"; 
 
-var keyfuncs = (function() {
-	var keysDown = new Uint8Array(256); 
-	var keysDownOld = new Uint8Array(256); 
+var names = ["experimental-webgl", "webgl", "moz-webgl", "webkit-3d"];
+function createContext(width, height, node) { 	
+		var canvas;
+		node = node || document.body;  
+		canvas = document.createElement("canvas"); 
+		canvas.width = width || 640; 
+		canvas.height = height || 480; 
+		node.appendChild(canvas); 
 
-	cleanKeys(); 
-
-	document.addEventListener("keydown", function(e) {
-		var k = e.keyCode; 
-		if(k < 256) {
-			keysDown[k] = 1; 
+		var i; 
+		var name; 	
+		var gl; 
+		for(i = 0; name = names[i++];) {
+			gl = canvas.getContext(name, {alpha : false, preserveDrawingBuffer : true}); 
+			if(gl) {
+				break; 
+			}
 		}
-	}); 
 
-	document.addEventListener("keyup", function(e) {
-		var k = e.keyCode; 
-		if(k < 256) {
-			keysDown[k] = 0; 
-		}
-	}); 
+		return gl; 
+}
 
-	window.addEventListener("blur", function() { 
-		cleanKeys(); 	
-	});
+function createSafeContext(width, height, node) {
+	var gl = createContext(width, height, node); 
+	return WebGLDebugUtils.makeDebugContext(gl).getSafeContext(); 
+}
 
-	function cleanKeys() {
-		for(var i = 0; i !== 256; i++) {
-			keysDownOld[i] = 0; 
-			keysDown[i] = 0; 
-		}
+GLT.createContext = createContext; 
+}(GLT));
+(function(GLT) { 
+"use strict"; 
+//TODO: TESTME 
+
+function addPolygonsToList(list, p) {
+	for(var i = 0; i != p.length; i++) {
+		var vertices = p[i].vertices;
+		addVerticesToList(list, vertices);
+	}
+}
+
+function addVerticesToList(list, vertices, endpoint) {
+	if(!endpoint) {
+		return addVerticesToList(list, vertices, vertices.length - 1);
 	}
 
-	function setOldKeyState() {
-		for(var i = 0; i !== 256; i++) {
-			keysDownOld[i] = keysDown[i]; 
-		}
+	//CSG Polygon ist Konvex und Koplanar. d. h. man kann die
+	//Eckpunkte ganz einfach paarweise zuordnen.
+	pushVerticePosition(list, vertices[0].pos);
+	pushVerticePosition(list, vertices[endpoint - 1].pos);
+	pushVerticePosition(list, vertices[endpoint].pos);
+
+	if(endpoint > 2) {
+		addVerticesToList(list, vertices, endpoint - 1);
 	}
+}
 
-	var keys = {
-		"backspace":8, "tab":9, "enter":13, "shift":16, "ctrl":17, "alt":18, "pause":19, "capslock":20,
-		"escape":27, "space":32, "pageUp":33, "pageDown":34, "end":35, "home":36,
-		"left":37, "up":38, "right":39, "down":40, 
-		"insert":45, "delete":46,
-		"num0":48, "num1":49, "num2":50, "num3":51, "num4":52, "num5":53, "num6":54, "num7":55, "num8":56, "num9":57,
-		"a":65, "b":66, "c":67, "d":68, "e":69, "f":70, "g":71, "h":72, "i":73, "j":74, "k":75, "l":76, "m":77, 
-		"n":78, "o":79, "p":80, "q":81, "r":82, "s":83, "t":84, "u":85, "v":86, "w":87, "x":88, "y":89, "z":90, 
-		"windowKeyLeft":91, "windowKeyRight":92, "select":93,
-		"numpad0":96, "numpad1":97, "numpad2":98, "numpad3":99, "numpad4":100, 
-		"numpad5":101, "numpad6":102, "numpad7":103, "numpad8":104, "numpad9":105,
-		"multiply":106, "add":107, "subtract":109, "decimalPoint":110, "divide":111,
-		"f1":112, "f2":113, "f3":114, "f4":115, "f5":116, "f6":117,
-		"f7":118, "f8":119, "f9":120, "f10":121, "f11":122, "f12":123,
-		"numlock":144, "scrolllock":145, "semicolon":186, "equals":187, "comma":188,
-		"dash":189, "period":190, "slash":191, "graveAccent":192, "openBracket":219,
-		"backSlash":220, "closeBraket":221, "quote":222
-	};
+function pushVerticePosition(list, v) {
+	list.push(v.x, v.y, v.z);
+}
 
-	return {
-		"keyIsDown" : function (key) {
-			return keysDown[key] !== 0; 
-		}, 
-		"keyIsUp" :  function (key) {
-			return keysDown[key] === 0; 
-		}, 
-		"keyWasPressed" : function (key) {
-			return keysDown[key] !== 0 && keysDownOld[key] === 0;
-		},  
-		"keyWasReleased" : function (key) {
-			return keysDown[key] === 0 && keysDownOld[key] !== 0;
-		}, 
-		"keys" : keys, 
-		"setOldKeyState" : setOldKeyState, 
-		"keysDown" : keysDown, 
-		"keysDownOld" : keysDownOld 
-	};
-}());
+//TODO 
+}(GLT)); 
+(function (GLT) {
+	"use strict"; 
 
-
-
-
-var joyfuncs = (function () {
 	var gamepads = navigator.webkitGamepads || navigator.mozGamepads || navigator.gamepads || [];
 	var e = 0.2; 
 	var edge0 = e; 
@@ -3122,15 +3097,184 @@ var joyfuncs = (function () {
 		return t * t * (3.0 - 2.0 * t);
 	}
 
-	return {
-		"update" : update, 
-		"getFirstPad" : getFirstPad  
+	GLT.gamepads = {}; 
+	GLT.gamepads.first = getFirstPad; 
+	GLT.gamepads.update = update; 
+}(GLT));  
+
+(function(GLT) {
+	"use strict"; 
+
+	var SIZE = 256; 	
+
+	var keysDown = new Uint8Array(SIZE); 
+	var keysDownOld = new Uint8Array(SIZE); 
+
+	function cleanKeys() {
+		for(var i = 0; i !== SIZE; i++) {
+			keysDownOld[i] = 0; 
+			keysDown[i] = 0; 
+		}
+	}
+
+	function update() {
+		for(var i = 0; i !== SIZE; i++) {
+			keysDownOld[i] = keysDown[i]; 
+		}
+	}
+
+	function isDown(key) {
+		return keysDown[key] !== 0; 
+	}
+
+	function isUp (key) {
+		return keysDown[key] === 0; 
+	}
+
+	function wasPressed (key) {
+		return keysDown[key] !== 0 && keysDownOld[key] === 0;
+	}
+
+	function wasReleased (key) {
+		return keysDown[key] === 0 && keysDownOld[key] !== 0;
+	}
+
+	cleanKeys(); 
+
+	document.addEventListener("keydown", function(e) {
+		var k = e.keyCode; 
+		if(k < SIZE) {
+			keysDown[k] = 1; 
+		}
+	}); 
+
+	document.addEventListener("keyup", function(e) {
+		var k = e.keyCode; 
+		if(k < SIZE) {
+			keysDown[k] = 0; 
+		}
+	}); 
+
+	window.addEventListener("blur", function() { 
+		cleanKeys(); 	
+	});
+
+	var codes = {
+		"backspace":8, "tab":9, "enter":13, "shift":16, "ctrl":17, "alt":18, "pause":19, "capslock":20,
+		"escape":27, "space":32, "pageUp":33, "pageDown":34, "end":35, "home":36,
+		"left":37, "up":38, "right":39, "down":40, 
+		"insert":45, "delete":46,
+		"num0":48, "num1":49, "num2":50, "num3":51, "num4":52, "num5":53, "num6":54, "num7":55, "num8":56, "num9":57,
+		"a":65, "b":66, "c":67, "d":68, "e":69, "f":70, "g":71, "h":72, "i":73, "j":74, "k":75, "l":76, "m":77, 
+		"n":78, "o":79, "p":80, "q":81, "r":82, "s":83, "t":84, "u":85, "v":86, "w":87, "x":88, "y":89, "z":90, 
+		"windowKeyLeft":91, "windowKeyRight":92, "select":93,
+		"numpad0":96, "numpad1":97, "numpad2":98, "numpad3":99, "numpad4":100, 
+		"numpad5":101, "numpad6":102, "numpad7":103, "numpad8":104, "numpad9":105,
+		"multiply":106, "add":107, "subtract":109, "decimalPoint":110, "divide":111,
+		"f1":112, "f2":113, "f3":114, "f4":115, "f5":116, "f6":117,
+		"f7":118, "f8":119, "f9":120, "f10":121, "f11":122, "f12":123,
+		"numlock":144, "scrolllock":145, "semicolon":186, "equals":187, "comma":188,
+		"dash":189, "period":190, "slash":191, "graveAccent":192, "openBracket":219,
+		"backSlash":220, "closeBraket":221, "quote":222
 	};
-}());  
 
+	GLT.keys = {}; 
+	GLT.keys.update = update; 
+	GLT.keys.isDown = isDown; 
+	GLT.keys.isUp = isUp; 
+	GLT.keys.wasPressed = wasPressed; 
+	GLT.keys.wasReleased = wasReleased;  
+}(GLT));
+(function(GLT) { 
+"use strict"; 
 
+function nop() {
+} 
 
-var objparse = (function() { 
+function fileIsPicture(name, callback) {
+	var pictureSuffixe = [".jpg", ".jpeg", ".png", ".gif"]; 
+
+	for(var i = 0, suffix; suffix = pictureSuffixe[i++];) {
+		if((name.lastIndexOf(suffix) + suffix.length) === name.length) {
+			callback(true); 
+			return; 
+		}			
+	}
+	callback(false); 
+}
+
+//options = {
+// "files" = ["path1", "path2", ...]
+// "update" = function (lastFileLoaded, percentage [0..1]
+// "finished" = function ([{file:"file1",blob:"blob1"},{file:"file2",blob:"blob2"},...])
+// "error" = function (file, error)
+//}
+function loadFiles(options) {
+	if(!options) throw new Error("Passed nothing in loadFiles"); 
+
+	var files    = options.files    || [];  
+	var update   = options.update   || nop; 
+	var finished = options.finished || nop; 
+	var error    = options.error    || nop; 
+
+	var total = files.length; 
+	var filesInLoadingQueue = 0; 
+
+	var result = Object.create(null);  
+
+	var fileLoaded = function(file, blob) {
+		filesInLoadingQueue++; 
+
+		result[file] = blob; 
+
+		update(file, filesInLoadingQueue/total); 
+
+		if(filesInLoadingQueue === total) {
+			finished(result); 
+		}
+	}; 
+
+	var fileFailed = function(file, message) {
+		fileLoaded = nop; 
+		fileFailed = nop; 
+		error(file, message); 
+	}
+
+	for(var i = 0, file; file = files[i++];) {
+		(function(file) {
+			fileIsPicture(file, function(picture) {
+				if(picture) {
+					var image = new Image(); 
+					image.onload = function() {
+						fileLoaded(file, image); 
+					}; 
+					image.onerror = function() {
+						fileFailed(file, ""); 
+					};
+					image.src = file; 				
+				}
+				else {
+					Zepto.ajax({
+						"url" : file, 
+						"success" : function(data, stat, xhr) {
+							fileLoaded(file, data); 
+						},
+						"error" : function(xhr, errorType, error) {
+							fileFailed(file, error || errorType); 
+						}
+					}); 
+				}
+			});
+		}(file));
+	}
+}
+
+GLT.loadmanager = {}; 
+GLT.loadmanager.loadFiles = loadFiles; 
+}(GLT)); 
+(function(GLT) { 
+	"use strict"; 
+
 	var SIZEOFFLOAT = 4; 
 	var defT = [0,0, 1,0, 0,1]
 	var defN = [1,0,0,0, 0,1,0,0, 0,0,1,0]	
@@ -3202,138 +3346,67 @@ var objparse = (function() {
 		console.log(vertice, textureuv, normals); 
 	}	
 
-	return {
-		"parse" : parse 
-	};
-}()); 
-
-
-var loadmanager = (function() { 
-	function nop() {
-	} 
-
-	
-	function fileIsPicture(name, callback) {
-		var pictureSuffixe = [".jpg", ".jpeg", ".png", ".gif"]; 
-
-		for(var i = 0, suffix; suffix = pictureSuffixe[i++];) {
-			if((name.lastIndexOf(suffix) + suffix.length) === name.length) {
-				callback(true); 
-				return; 
-			}			
-		}
-		callback(false); 
-	}
-
-	//options = {
-	// "files" = ["path1", "path2", ...]
-	// "update" = function (lastFileLoaded, percentage [0..1]
-	// "finished" = function ([{file:"file1",blob:"blob1"},{file:"file2",blob:"blob2"},...])
-	// "error" = function (file, error)
-	//}
-	function loadFiles(options) {
-		if(!options) throw new Error("Passed nothing in loadFiles"); 
-
-		var files    = options.files    || [];  
-		var update   = options.update   || nop; 
-		var finished = options.finished || nop; 
-		var error    = options.error    || nop; 
-
-		var total = files.length; 
-		var filesInLoadingQueue = 0; 
-
-		var result = Object.create(null);  
-	
-		var fileLoaded = function(file, blob) {
-			filesInLoadingQueue++; 
-
-			result[file] = blob; 
-
-			update(file, filesInLoadingQueue/total); 
-
-			if(filesInLoadingQueue === total) {
-				finished(result); 
-			}
-		}; 
-
-		var fileFailed = function(file, message) {
-			fileLoaded = nop; 
-			fileFailed = nop; 
-			error(file, message); 
-		}
-
-		for(var i = 0, file; file = files[i++];) {
-			(function(file) {
-				fileIsPicture(file, function(picture) {
-					if(picture) {
-						var image = new Image(); 
-						image.onload = function() {
-							fileLoaded(file, image); 
-						}; 
-						image.onerror = function() {
-							fileFailed(file, ""); 
-						};
-						image.src = file; 				
-					}
-					else {
-						Zepto.ajax({
-							"url" : file, 
-							"success" : function(data, stat, xhr) {
-								fileLoaded(file, data); 
-							},
-							"error" : function(xhr, errorType, error) {
-								fileFailed(file, error || errorType); 
-							}
-						}); 
-					}
-				});
-			}(file));
-		}
-	}
-
-	return {
-		"loadFiles" : loadFiles 
-	}; 
-}()); 
-
-
+	GLT.objparser = {};
+	GLT.objparser.parse = parse; 
+}(GLT)); 
+(function(GLT) {
+"use strict"; 
 
 var requestAnimationFrame = 
 	window.requestAnimationFrame       || 
 	window.webkitRequestAnimationFrame || 
 	window.mozRequestAnimationFrame    || 
 	window.oRequestAnimationFrame      || 
-	window.msRequestAnimationFrame     || 
 	function( callback ){
 		window.setTimeout(callback, 1000 / 60);
 	};
 
-function createContext(width, height, node) { 	
-		var canvas;
-		node = node || document.body;  
-		canvas = document.createElement("canvas"); 
-		canvas.width = width || 640; 
-		canvas.height = height || 480; 
-		node.appendChild(canvas); 
+var requestGameFrame = (function() {
+	var starttime = -1; 
+	var lasttime = 0;
 
-		var names = [ "experimental-webgl", "webgl", "moz-webgl", "webkit-3d" ];
-		var i; 
-		var name; 	
-		var gl; 
-		for(i = 0; name = names[i++];) {
-			gl = WebGLDebugUtils.makeDebugContext(canvas.getContext(name, {alpha : false, preserveDrawingBuffer : true}).getSafeContext()); 
-			if(gl) {
-				break; 
+	var time = {
+		"delta" : 0, 
+		"total" : 0
+	};
+
+	var loopObject = {
+		"time" : time, 
+		"frame" : 0, 
+		"reset" : reset 
+	};
+	
+	function reset() {
+		starttime = -1;  
+	}
+
+	return function (callback) { 
+		requestAnimationFrame(function () {
+			var now = Date.now(); 
+			if(starttime === -1) {
+				lasttime = now;
+				starttime = now; 
+				loopObject.frame = 0; 
 			}
-		}
 
-		return gl; 
-}
+			time.delta = (now - lasttime) / 1000.0; 
+			time.total = (now - starttime) / 1000.0; 
 
-function getSource(id) {
-    var node = document.getElementById(id); 
-    return node.innerText; 
-}
+			joyfuncs.update(); 
+
+			callback(loopObject); 
+
+			keyfuncs.setOldKeyState(); 
+			lasttime = now; 
+			loopObject.frame++;
+		}); 
+	};
+}()); 
+
+GLT.requestGameFrame = requestGameFrame; 
+}(GLT)); 
+(function(GLT){
+"use strict"; 
 
 function createCube() {
 	var vert = new Float32Array([
@@ -3438,100 +3511,7 @@ function createPlane(level) {
     }
 }
 
-var requestGameFrame = (function() {
-	var starttime = -1; 
-	var lasttime = 0;
-
-	var time = {
-		"delta" : 0, 
-		"total" : 0
-	};
-
-	var loopObject = {
-		"time" : time, 
-		"frame" : 0, 
-		"reset" : reset 
-	};
-	
-	function reset() {
-		starttime = -1;  
-	}
-
-	return function (callback) { 
-		requestAnimationFrame(function () {
-			var now = Date.now(); 
-			if(starttime === -1) {
-				lasttime = now;
-				starttime = now; 
-				loopObject.frame = 0; 
-			}
-
-			time.delta = (now - lasttime) / 1000.0; 
-			time.total = (now - starttime) / 1000.0; 
-
-			joyfuncs.update(); 
-
-			callback(loopObject); 
-
-			keyfuncs.setOldKeyState(); 
-			lasttime = now; 
-			loopObject.frame++;
-		}); 
-	};
-}()); 
-
-var shapes = {
-	"createPlane" : createPlane, 
-	"createCube" : createCube, 
-};
-
-// UTIL.keys.x.down
-// UTIL.keys.x.up
-// UTIL.keys.x.pressed
-// UTIL.keys.x.released
-
-var keys = {
-	codes : function() { return keyfuncs.keys; }, 
-	isDown : function() { return keyfuncs.keyisDown; }, 
-	isUp : function() { return keyfuncs.keyisUp; }, 
-	wasPressed : function() { return keyfuncs.keyWasPressed; }, 
-	wasReleased : function() { return keyfuncs.keyWasReleased; } 
-};
-
-for(var kn in keyfuncs.keys) {
-	(function(keyname, keycode) { 
-		var funcs = {
-			down : function() { return keyfuncs.keyIsDown(keycode); },
-			up : function() { return keyfuncs.keyIsUp(keycode); },
-			pressed : function() { return keyfuncs.keyWasPressed(keycode); },
-			released : function() { return keyfuncs.keyWasReleased(keycode); },
-		}; 
-
-		Object.defineProperty(keys, keyname, {
-			"get" : function() { return funcs; }  
-		});
-	}(kn, keyfuncs.keys[kn])); 
-} 
-
-var gamepads = {
-	"first" : joyfuncs.getFirstPad
-};
-
-var obj = {
-	"parse" : objparse.parse
-}
-
-return {
-	"requestGameFrame" : requestGameFrame, 
-	"createContext" : createContext,
-	"getSource" : getSource,  
-	"shapes" : shapes,
-	"obj" : obj, 
-	"keys" : keys,
-	"gamepads" : gamepads,
-	"csg" : CSG, 
-	"loadmanager" : loadmanager 
-}; 
-}());
-}()); 
-
+GLT.shapes = {}; 
+GLT.shapes.createCube = createCube; 
+GLT.shapes.createPlane = createPlane; 
+}(GLT));

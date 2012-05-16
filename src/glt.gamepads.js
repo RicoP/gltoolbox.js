@@ -1,4 +1,6 @@
-var joyfuncs = (function () {
+(function (GLT) {
+	"use strict"; 
+
 	var gamepads = navigator.webkitGamepads || navigator.mozGamepads || navigator.gamepads || [];
 	var e = 0.2; 
 	var edge0 = e; 
@@ -54,9 +56,8 @@ var joyfuncs = (function () {
 		return t * t * (3.0 - 2.0 * t);
 	}
 
-	return {
-		"update" : update, 
-		"getFirstPad" : getFirstPad  
-	};
-}());  
+	GLT.gamepads = {}; 
+	GLT.gamepads.first = getFirstPad; 
+	GLT.gamepads.update = update; 
+}(GLT));  
 

@@ -11,14 +11,14 @@
 
 <input type="button" onclick="javascript:loadOK();" value="OK" />
 
-<script src="../../util.js"></script> 
+<script src="../../glt.js"></script> 
 <script>
 var loadOK = function() { 
-	UTIL.loadmanager.loadFiles({
+	GLT.loadmanager.loadFiles({
 		"files" : ["house.obj"],
 		"finished" : function(files) {
 			var house = files["house.obj"]; 
-			UTIL.obj.parse(house); 
+			GLT.objparser.parse(house); 
 			//console.log("files : ", files);  
 		},
 		"error" : function(file, error) {

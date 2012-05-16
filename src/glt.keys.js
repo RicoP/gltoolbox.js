@@ -1,19 +1,52 @@
-var keyfuncs = (function() {
-	var keysDown = new Uint8Array(256); 
-	var keysDownOld = new Uint8Array(256); 
+(function(GLT) {
+	"use strict"; 
+
+	var SIZE = 256; 	
+
+	var keysDown = new Uint8Array(SIZE); 
+	var keysDownOld = new Uint8Array(SIZE); 
+
+	function cleanKeys() {
+		for(var i = 0; i !== SIZE; i++) {
+			keysDownOld[i] = 0; 
+			keysDown[i] = 0; 
+		}
+	}
+
+	function update() {
+		for(var i = 0; i !== SIZE; i++) {
+			keysDownOld[i] = keysDown[i]; 
+		}
+	}
+
+	function isDown(key) {
+		return keysDown[key] !== 0; 
+	}
+
+	function isUp (key) {
+		return keysDown[key] === 0; 
+	}
+
+	function wasPressed (key) {
+		return keysDown[key] !== 0 && keysDownOld[key] === 0;
+	}
+
+	function wasReleased (key) {
+		return keysDown[key] === 0 && keysDownOld[key] !== 0;
+	}
 
 	cleanKeys(); 
 
 	document.addEventListener("keydown", function(e) {
 		var k = e.keyCode; 
-		if(k < 256) {
+		if(k < SIZE) {
 			keysDown[k] = 1; 
 		}
 	}); 
 
 	document.addEventListener("keyup", function(e) {
 		var k = e.keyCode; 
-		if(k < 256) {
+		if(k < SIZE) {
 			keysDown[k] = 0; 
 		}
 	}); 
@@ -22,20 +55,7 @@ var keyfuncs = (function() {
 		cleanKeys(); 	
 	});
 
-	function cleanKeys() {
-		for(var i = 0; i !== 256; i++) {
-			keysDownOld[i] = 0; 
-			keysDown[i] = 0; 
-		}
-	}
-
-	function setOldKeyState() {
-		for(var i = 0; i !== 256; i++) {
-			keysDownOld[i] = keysDown[i]; 
-		}
-	}
-
-	var keys = {
+	var codes = {
 		"backspace":8, "tab":9, "enter":13, "shift":16, "ctrl":17, "alt":18, "pause":19, "capslock":20,
 		"escape":27, "space":32, "pageUp":33, "pageDown":34, "end":35, "home":36,
 		"left":37, "up":38, "right":39, "down":40, 
@@ -54,24 +74,10 @@ var keyfuncs = (function() {
 		"backSlash":220, "closeBraket":221, "quote":222
 	};
 
-	return {
-		"keyIsDown" : function (key) {
-			return keysDown[key] !== 0; 
-		}, 
-		"keyIsUp" :  function (key) {
-			return keysDown[key] === 0; 
-		}, 
-		"keyWasPressed" : function (key) {
-			return keysDown[key] !== 0 && keysDownOld[key] === 0;
-		},  
-		"keyWasReleased" : function (key) {
-			return keysDown[key] === 0 && keysDownOld[key] !== 0;
-		}, 
-		"keys" : keys, 
-		"setOldKeyState" : setOldKeyState, 
-		"keysDown" : keysDown, 
-		"keysDownOld" : keysDownOld 
-	};
-}());
-
-
+	GLT.keys = {}; 
+	GLT.keys.update = update; 
+	GLT.keys.isDown = isDown; 
+	GLT.keys.isUp = isUp; 
+	GLT.keys.wasPressed = wasPressed; 
+	GLT.keys.wasReleased = wasReleased;  
+}(GLT));

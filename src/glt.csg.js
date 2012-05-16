@@ -1,5 +1,5 @@
-var csghelper = (function() { 
-
+(function(GLT) { 
+"use strict"; 
 //TODO: TESTME 
 
 function addPolygonsToList(list, p) {
@@ -29,4 +29,5 @@ function pushVerticePosition(list, v) {
 	list.push(v.x, v.y, v.z);
 }
 
-}()); 
+//TODO 
+}(GLT)); 
