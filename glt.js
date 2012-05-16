@@ -2974,6 +2974,242 @@ window.Zepto = Zepto
 })(Zepto)
 var GLT = {}; 
 
+(function(GLT) { 
+	"use strict"; 
+
+	var SIZEOFFLOAT = 4; 
+	var defT = [0,0, 1,0, 0,1]
+	var defN = [1,0,0,0, 0,1,0,0, 0,0,1,0]	
+
+	function parse(text) {
+		var lines = text.split("\n"); 
+		var line = ""; 
+		var linenum = 0; 
+		
+		var vertice = []; //[x1,y1,z1,1,x2,y2,z2,1,...]
+		var normals = []; //[x1,y1,z1,0,x2,y2,z2,0,...]
+		var textureuv = []; //[u1,v1,u2,v2,...] 	
+		var indice = []; 
+		
+		var funcs = {
+			"v" : function(s) {
+				if(!s || s.length != 3) {
+					throw new Error("Can't accept Vertic without 3 components. LINE:" + line); 
+				}
+
+				var x = Number(s[0], 10); 
+				var y = Number(s[1], 10); 
+				var z = Number(s[2], 10); 
+
+				vertice.push(x,y,z,1); 
+			},
+			"vn" : function(s) {
+				if(!s || s.length != 3) {
+					throw new Error("Can't accept Normal without 3 components. LINE:" + linenum); 
+				}
+		
+				var x = Number(s[0], 10); 
+				var y = Number(s[1], 10); 
+				var z = Number(s[2], 10); 
+
+				normals.push(x,y,z,0); 
+			},
+			"vt" : function(s) {
+				if(!s || s.length != 2) {
+					throw new Error("Can't accept Texture without 2 components. LINE:" + linenum); 
+				}
+		
+				var u = Number(s[0], 10); 
+				var v = Number(s[1], 10); 
+
+				textureuv.push(u,v); 
+			},
+			"f" : function(s) {
+				if(!s || s.length != 3) {
+					throw new Error("Can't accept Face without 3 components. LINE:" + linenum); 
+				}
+
+				//TODO				
+			}
+		};
+
+		var rgx = /[\t\r\n ]+/g; 
+
+		for(linenum = 0; linenum != lines.length;) {			
+			line = lines[linenum++].trim();
+			var elements = line.split(rgx);
+			var head = elements.shift(); 
+			if(head in funcs) {
+				funcs[head](elements); 
+			}
+		}	
+
+		//TODO
+		console.log(vertice, textureuv, normals); 
+	}	
+
+	GLT.objparser = {};
+	GLT.objparser.parse = parse; 
+}(GLT)); 
+(function(GLT) { 
+"use strict"; 
+
+var TEXT = 1; 
+var MJSON = 2; 
+var SCRIPT = 3; 
+var XML = 4; 
+var IMAGE = 5; 
+var OBJ = 6; 
+var HTML = 7;
+
+function mimeToType(mime) {
+	mime = mime.toLowerCase(); 
+
+	if(mime === "application/json") {
+		return MJSON; 
+	}
+
+	if(mime === "text/html") {
+		return HTML; 
+	}
+
+	if(mime === "application/octet-stream") {
+		return OBJ; 
+	}
+
+	if(mime.indexOf("javascript") !== -1) {
+		return SCRIPT; 
+	}
+
+	if(mime.indexOf("xml") !== -1) {
+		return XML; 
+	}
+	if(mime.indexOf("image") !== -1) {
+		return IMAGE; 
+	}
+
+	return TEXT; 
+}
+
+function simpleAjaxCall(file, success, error) {
+	var mime = 0; 
+	var abort = false; 
+	var xhr = new XMLHttpRequest(); 
+	xhr.onreadystatechange = onReadyState; 
+	xhr.open('GET', file, true);  
+	xhr.send(null);
+	
+	function onReadyState() {
+		if(!abort && (xhr.readyState === 2 || xhr.readyState === 3)){
+			mime = mimeToType(xhr.getResponseHeader("content-type"));
+			if(file.toLowerCase().lastIndexOf(".obj") + 4 === file.length) {
+				mime = OBJ; 
+			}			
+
+			if(mime === IMAGE) {
+				//We load a Image: Use Image class
+				abort = true; 
+				xhr.abort(); 
+
+				var image = new Image(); 
+				image.onload = function() {
+					success(file, image); 
+				};
+				image.onerror = function() {
+					error(file, "");
+				}
+				image.src = file; 
+				return; 
+			}
+		}
+
+		if(!abort && xhr.readyState === 4) {
+			var s = xhr.status; 
+			if(s >= 200 && s <= 299 || s === 304 || s ===0) {
+				if(mime === XML) {
+					success(file, xhr.responseXML);
+				}
+				else if(mime === MJSON) {
+					try {
+						success(file, JSON.parse(xhr.responseText));
+					}	
+					catch(e) {
+						error(file, e); 
+					}
+				}
+				else { 
+					success(file, xhr.responseText);
+				}
+			}
+			else {	
+				error(file, s || 0); 
+			}
+		}
+	}
+}
+
+function nop() {
+} 
+
+function fileIsPicture(name, callback) {
+	var pictureSuffixe = [".jpg", ".jpeg", ".png", ".gif"]; 
+
+	for(var i = 0, suffix; suffix = pictureSuffixe[i++];) {
+		if((name.lastIndexOf(suffix) + suffix.length) === name.length) {
+			callback(true); 
+			return; 
+		}			
+	}
+	callback(false); 
+}
+
+//options = {
+// "files" = ["path1", "path2", ...]
+// "update" = function (lastFileLoaded, percentage [0..1]
+// "finished" = function ([{file:"file1",blob:"blob1"},{file:"file2",blob:"blob2"},...])
+// "error" = function (file, error)
+//}
+function loadFiles(options) {
+	if(!options) throw new Error("Passed nothing in loadFiles"); 
+
+	var files    = options.files    || [];  
+	var update   = options.update   || nop; 
+	var finished = options.finished || nop; 
+	var error    = options.error    || nop; 
+
+	var total = files.length; 
+	var filesInLoadingQueue = 0; 
+
+	var result = Object.create(null);  
+
+	var fileLoaded = function(file, blob) {
+		filesInLoadingQueue++; 
+
+		result[file] = blob; 
+
+		update(file, filesInLoadingQueue/total); 
+
+		if(filesInLoadingQueue === total) {
+			finished(result); 
+		}
+	}; 
+
+	var fileFailed = function(file, message) {
+		fileLoaded = nop; 
+		fileFailed = nop; 
+		error(file, message); 
+	}
+
+	for(var i = 0, file; file = files[i++];) {
+		(function(file) {
+			simpleAjaxCall(file, fileLoaded, fileFailed); 
+		}(file));
+	}
+}
+
+GLT.loadmanager = {}; 
+GLT.loadmanager.loadFiles = loadFiles; 
+}(GLT)); 
 (function(GLT) {
 "use strict"; 
 
@@ -3185,226 +3421,6 @@ function pushVerticePosition(list, v) {
 	GLT.keys.wasPressed = wasPressed; 
 	GLT.keys.wasReleased = wasReleased;  
 }(GLT));
-(function(GLT) { 
-"use strict"; 
-
-function nop() {
-} 
-
-function fileIsPicture(name, callback) {
-	var pictureSuffixe = [".jpg", ".jpeg", ".png", ".gif"]; 
-
-	for(var i = 0, suffix; suffix = pictureSuffixe[i++];) {
-		if((name.lastIndexOf(suffix) + suffix.length) === name.length) {
-			callback(true); 
-			return; 
-		}			
-	}
-	callback(false); 
-}
-
-//options = {
-// "files" = ["path1", "path2", ...]
-// "update" = function (lastFileLoaded, percentage [0..1]
-// "finished" = function ([{file:"file1",blob:"blob1"},{file:"file2",blob:"blob2"},...])
-// "error" = function (file, error)
-//}
-function loadFiles(options) {
-	if(!options) throw new Error("Passed nothing in loadFiles"); 
-
-	var files    = options.files    || [];  
-	var update   = options.update   || nop; 
-	var finished = options.finished || nop; 
-	var error    = options.error    || nop; 
-
-	var total = files.length; 
-	var filesInLoadingQueue = 0; 
-
-	var result = Object.create(null);  
-
-	var fileLoaded = function(file, blob) {
-		filesInLoadingQueue++; 
-
-		result[file] = blob; 
-
-		update(file, filesInLoadingQueue/total); 
-
-		if(filesInLoadingQueue === total) {
-			finished(result); 
-		}
-	}; 
-
-	var fileFailed = function(file, message) {
-		fileLoaded = nop; 
-		fileFailed = nop; 
-		error(file, message); 
-	}
-
-	for(var i = 0, file; file = files[i++];) {
-		(function(file) {
-			fileIsPicture(file, function(picture) {
-				if(picture) {
-					var image = new Image(); 
-					image.onload = function() {
-						fileLoaded(file, image); 
-					}; 
-					image.onerror = function() {
-						fileFailed(file, ""); 
-					};
-					image.src = file; 				
-				}
-				else {
-					Zepto.ajax({
-						"url" : file, 
-						"success" : function(data, stat, xhr) {
-							fileLoaded(file, data); 
-						},
-						"error" : function(xhr, errorType, error) {
-							fileFailed(file, error || errorType); 
-						}
-					}); 
-				}
-			});
-		}(file));
-	}
-}
-
-GLT.loadmanager = {}; 
-GLT.loadmanager.loadFiles = loadFiles; 
-}(GLT)); 
-(function(GLT) { 
-	"use strict"; 
-
-	var SIZEOFFLOAT = 4; 
-	var defT = [0,0, 1,0, 0,1]
-	var defN = [1,0,0,0, 0,1,0,0, 0,0,1,0]	
-
-	function parse(text) {
-		var lines = text.split("\n"); 
-		var line = ""; 
-		var linenum = 0; 
-		
-		var vertice = []; //[x1,y1,z1,1,x2,y2,z2,1,...]
-		var normals = []; //[x1,y1,z1,0,x2,y2,z2,0,...]
-		var textureuv = []; //[u1,v1,u2,v2,...] 	
-		var indice = []; 
-		
-		var funcs = {
-			"v" : function(s) {
-				if(!s || s.length != 3) {
-					throw new Error("Can't accept Vertic without 3 components. LINE:" + line); 
-				}
-
-				var x = Number(s[0], 10); 
-				var y = Number(s[1], 10); 
-				var z = Number(s[2], 10); 
-
-				vertice.push(x,y,z,1); 
-			},
-			"vn" : function(s) {
-				if(!s || s.length != 3) {
-					throw new Error("Can't accept Normal without 3 components. LINE:" + linenum); 
-				}
-		
-				var x = Number(s[0], 10); 
-				var y = Number(s[1], 10); 
-				var z = Number(s[2], 10); 
-
-				normals.push(x,y,z,0); 
-			},
-			"vt" : function(s) {
-				if(!s || s.length != 2) {
-					throw new Error("Can't accept Texture without 2 components. LINE:" + linenum); 
-				}
-		
-				var u = Number(s[0], 10); 
-				var v = Number(s[1], 10); 
-
-				textureuv.push(u,v); 
-			},
-			"f" : function(s) {
-				if(!s || s.length != 3) {
-					throw new Error("Can't accept Face without 3 components. LINE:" + linenum); 
-				}
-
-				//TODO				
-			}
-		};
-
-		var rgx = /[\t\r\n ]+/g; 
-
-		for(linenum = 0; linenum != lines.length;) {			
-			line = lines[linenum++].trim();
-			var elements = line.split(rgx);
-			var head = elements.shift(); 
-			if(head in funcs) {
-				funcs[head](elements); 
-			}
-		}	
-
-		//TODO
-		console.log(vertice, textureuv, normals); 
-	}	
-
-	GLT.objparser = {};
-	GLT.objparser.parse = parse; 
-}(GLT)); 
-(function(GLT) {
-"use strict"; 
-
-var requestAnimationFrame = 
-	window.requestAnimationFrame       || 
-	window.webkitRequestAnimationFrame || 
-	window.mozRequestAnimationFrame    || 
-	window.oRequestAnimationFrame      || 
-	function( callback ){
-		window.setTimeout(callback, 1000 / 60);
-	};
-
-var requestGameFrame = (function() {
-	var starttime = -1; 
-	var lasttime = 0;
-
-	var time = {
-		"delta" : 0, 
-		"total" : 0
-	};
-
-	var loopObject = {
-		"time" : time, 
-		"frame" : 0, 
-		"reset" : reset 
-	};
-	
-	function reset() {
-		starttime = -1;  
-	}
-
-	return function (callback) { 
-		requestAnimationFrame(function () {
-			var now = Date.now(); 
-			if(starttime === -1) {
-				lasttime = now;
-				starttime = now; 
-				loopObject.frame = 0; 
-			}
-
-			time.delta = (now - lasttime) / 1000.0; 
-			time.total = (now - starttime) / 1000.0; 
-
-			joyfuncs.update(); 
-
-			callback(loopObject); 
-
-			keyfuncs.setOldKeyState(); 
-			lasttime = now; 
-			loopObject.frame++;
-		}); 
-	};
-}()); 
-
-GLT.requestGameFrame = requestGameFrame; 
-}(GLT)); 
 (function(GLT){
 "use strict"; 
 
@@ -3515,3 +3531,59 @@ GLT.shapes = {};
 GLT.shapes.createCube = createCube; 
 GLT.shapes.createPlane = createPlane; 
 }(GLT));
+(function(GLT) {
+"use strict"; 
+
+var requestAnimationFrame = 
+	window.requestAnimationFrame       || 
+	window.webkitRequestAnimationFrame || 
+	window.mozRequestAnimationFrame    || 
+	window.oRequestAnimationFrame      || 
+	function( callback ){
+		window.setTimeout(callback, 1000 / 60);
+	};
+
+var requestGameFrame = (function() {
+	var starttime = -1; 
+	var lasttime = 0;
+
+	var time = {
+		"delta" : 0, 
+		"total" : 0
+	};
+
+	var loopObject = {
+		"time" : time, 
+		"frame" : 0, 
+		"reset" : reset 
+	};
+	
+	function reset() {
+		starttime = -1;  
+	}
+
+	return function (callback) { 
+		requestAnimationFrame(function () {
+			var now = Date.now(); 
+			if(starttime === -1) {
+				lasttime = now;
+				starttime = now; 
+				loopObject.frame = 0; 
+			}
+
+			time.delta = (now - lasttime) / 1000.0; 
+			time.total = (now - starttime) / 1000.0; 
+
+			joyfuncs.update(); 
+
+			callback(loopObject); 
+
+			keyfuncs.setOldKeyState(); 
+			lasttime = now; 
+			loopObject.frame++;
+		}); 
+	};
+}()); 
+
+GLT.requestGameFrame = requestGameFrame; 
+}(GLT)); 

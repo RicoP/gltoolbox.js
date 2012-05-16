@@ -5,6 +5,7 @@ echo "" > glt.js
 cat lib/csg.js/csg.js >> glt.js
 cat lib/glsafecontext.js/glsafecontext.js >> glt.js 
 cat lib/webgl-debug.js >> glt.js 
+cat lib/zepto/dist/zepto.js >> glt.js 
 
 cat src/pre.js >> glt.js
 cat src/glt.objparser.js >> glt.js
