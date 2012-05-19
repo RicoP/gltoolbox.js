@@ -1,13 +1,13 @@
 (function(GLT) { 
 "use strict"; 
 
-var TEXT = 1; 
+var MTEXT = 1; 
 var MJSON = 2; 
-var SCRIPT = 3; 
-var XML = 4; 
-var IMAGE = 5; 
-var OBJ = 6; 
-var HTML = 7;
+var MSCRIPT = 3; 
+var MXML = 4; 
+var MIMAGE = 5; 
+var MOBJ = 6; 
+var MHTML = 7;
 
 function mimeToType(mime) {
 	mime = mime.toLowerCase(); 
@@ -17,25 +17,25 @@ function mimeToType(mime) {
 	}
 
 	if(mime === "text/html") {
-		return HTML; 
+		return MHTML; 
 	}
 
 	if(mime === "application/octet-stream") {
-		return OBJ; 
+		return MOBJ; 
 	}
 
 	if(mime.indexOf("javascript") !== -1) {
-		return SCRIPT; 
+		return MSCRIPT; 
 	}
 
 	if(mime.indexOf("xml") !== -1) {
-		return XML; 
+		return MXML; 
 	}
 	if(mime.indexOf("image") !== -1) {
-		return IMAGE; 
+		return MIMAGE; 
 	}
 
-	return TEXT; 
+	return MTEXT; 
 }
 
 function simpleAjaxCall(file, success, error) {
@@ -50,10 +50,10 @@ function simpleAjaxCall(file, success, error) {
 		if(!abort && (xhr.readyState === 2 || xhr.readyState === 3)){
 			mime = mimeToType(xhr.getResponseHeader("content-type"));
 			if(file.toLowerCase().lastIndexOf(".obj") + 4 === file.length) {
-				mime = OBJ; 
+				mime = MOBJ; 
 			}			
 
-			if(mime === IMAGE) {
+			if(mime === MIMAGE) {
 				//We load a Image: Use Image class
 				abort = true; 
 				xhr.abort(); 
@@ -73,7 +73,7 @@ function simpleAjaxCall(file, success, error) {
 		if(!abort && xhr.readyState === 4) {
 			var s = xhr.status; 
 			if(s >= 200 && s <= 299 || s === 304 || s ===0) {
-				if(mime === XML) {
+				if(mime === MXML) {
 					success(file, xhr.responseXML);
 				}
 				else if(mime === MJSON) {
@@ -96,19 +96,8 @@ function simpleAjaxCall(file, success, error) {
 }
 
 function nop() {
+	//Do Nothing 
 } 
-
-function fileIsPicture(name, callback) {
-	var pictureSuffixe = [".jpg", ".jpeg", ".png", ".gif"]; 
-
-	for(var i = 0, suffix; suffix = pictureSuffixe[i++];) {
-		if((name.lastIndexOf(suffix) + suffix.length) === name.length) {
-			callback(true); 
-			return; 
-		}			
-	}
-	callback(false); 
-}
 
 //options = {
 // "files" = ["path1", "path2", ...]

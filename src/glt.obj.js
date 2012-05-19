@@ -30,9 +30,9 @@
 					throw new Error("Can't accept Vertic without 3 components. LINE:" + line); 
 				}
 
-				var x = Number(s[0], 10); 
-				var y = Number(s[1], 10); 
-				var z = Number(s[2], 10); 
+				var x = parseInt(s[0], 10); 
+				var y = parseInt(s[1], 10); 
+				var z = parseInt(s[2], 10); 
 
 				vertice.push(x,y,z,1); 
 			},
@@ -41,9 +41,9 @@
 					throw new Error("Can't accept Normal without 3 components. LINE:" + linenum); 
 				}
 		
-				var x = Number(s[0], 10); 
-				var y = Number(s[1], 10); 
-				var z = Number(s[2], 10); 
+				var x = parseInt(s[0], 10); 
+				var y = parseInt(s[1], 10); 
+				var z = parseInt(s[2], 10); 
 
 				normals.push(x,y,z,0); 
 			},
@@ -52,8 +52,8 @@
 					throw new Error("Can't accept Texture without 2 components. LINE:" + linenum); 
 				}
 		
-				var u = Number(s[0], 10); 
-				var v = Number(s[1], 10); 
+				var u = parseInt(s[0], 10); 
+				var v = parseInt(s[1], 10); 
 
 				textureuv.push(u,v); 
 			},
@@ -67,10 +67,10 @@
 				//Push indice
 				for(var i=0; i != 3; i++) {
 					var vtn = s[i].split("/"); 
-					//Keep in mind that Number(undefined, 10) yields NaN and NaN - 1 = NaN. 
-					var v = Number(vtn[0], 10) - 1; 
-					var t = Number(vtn[1], 10) - 1;
-					var n = Number(vtn[2], 10) - 1;
+					//Keep in mind that parseInt(undefined, 10) yields NaN and NaN - 1 = NaN. 
+					var v = parseInt(vtn[0], 10) - 1; 
+					var t = parseInt(vtn[1], 10) - 1;
+					var n = parseInt(vtn[2], 10) - 1;
 	
 					console.log(v,t,n); 					
 
@@ -150,7 +150,7 @@
 		var dataArray = new Float32Array(sizeArray); 
 		var indiceArray = new Float32Array(indiceV); 
 
-		for(var ii=0, di=0, L=faces.lengthi*3; ii < L; ii++) {
+		for(var ii=0, di=0, L=faces * 3; ii < L; ii++) {
 			//Push Vertice			
 			dataArray[di++] = vertice[indiceV[ii]+0]; 
 			dataArray[di++] = vertice[indiceV[ii]+1]; 

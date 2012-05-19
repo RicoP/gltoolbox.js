@@ -1,1709 +1,17 @@
-// Constructive Solid Geometry (CSG) is a modeling technique that uses Boolean
-// operations like union and intersection to combine 3D solids. This library
-// implements CSG operations on meshes elegantly and concisely using BSP trees,
-// and is meant to serve as an easily understandable implementation of the
-// algorithm. All edge cases involving overlapping coplanar polygons in both
-// solids are correctly handled.
-// 
-// Example usage:
-// 
-//     var cube = CSG.cube();
-//     var sphere = CSG.sphere({ radius: 1.3 });
-//     var polygons = cube.subtract(sphere).toPolygons();
-// 
-// ## Implementation Details
-// 
-// All CSG operations are implemented in terms of two functions, `clipTo()` and
-// `invert()`, which remove parts of a BSP tree inside another BSP tree and swap
-// solid and empty space, respectively. To find the union of `a` and `b`, we
-// want to remove everything in `a` inside `b` and everything in `b` inside `a`,
-// then combine polygons from `a` and `b` into one solid:
-// 
-//     a.clipTo(b);
-//     b.clipTo(a);
-//     a.build(b.allPolygons());
-// 
-// The only tricky part is handling overlapping coplanar polygons in both trees.
-// The code above keeps both copies, but we need to keep them in one tree and
-// remove them in the other tree. To remove them from `b` we can clip the
-// inverse of `b` against `a`. The code for union now looks like this:
-// 
-//     a.clipTo(b);
-//     b.clipTo(a);
-//     b.invert();
-//     b.clipTo(a);
-//     b.invert();
-//     a.build(b.allPolygons());
-// 
-// Subtraction and intersection naturally follow from set operations. If
-// union is `A | B`, subtraction is `A - B = ~(~A | B)` and intersection is
-// `A & B = ~(~A | ~B)` where `~` is the complement operator.
-// 
-// ## License
-// 
-// Copyright (c) 2011 Evan Wallace (http://madebyevan.com/), under the MIT license.
-
-// # class CSG
-
-// Holds a binary space partition tree representing a 3D solid. Two solids can
-// be combined using the `union()`, `subtract()`, and `intersect()` methods.
-
-CSG = function() {
-  this.polygons = [];
-};
-
-// Construct a CSG solid from a list of `CSG.Polygon` instances.
-CSG.fromPolygons = function(polygons) {
-  var csg = new CSG();
-  csg.polygons = polygons;
-  return csg;
-};
-
-CSG.prototype = {
-  clone: function() {
-    var csg = new CSG();
-    csg.polygons = this.polygons.map(function(p) { return p.clone(); });
-    return csg;
-  },
-
-  toPolygons: function() {
-    return this.polygons;
-  },
-
-  // Return a new CSG solid representing space in either this solid or in the
-  // solid `csg`. Neither this solid nor the solid `csg` are modified.
-  // 
-  //     A.union(B)
-  // 
-  //     +-------+            +-------+
-  //     |       |            |       |
-  //     |   A   |            |       |
-  //     |    +--+----+   =   |       +----+
-  //     +----+--+    |       +----+       |
-  //          |   B   |            |       |
-  //          |       |            |       |
-  //          +-------+            +-------+
-  // 
-  union: function(csg) {
-    var a = new CSG.Node(this.clone().polygons);
-    var b = new CSG.Node(csg.clone().polygons);
-    a.clipTo(b);
-    b.clipTo(a);
-    b.invert();
-    b.clipTo(a);
-    b.invert();
-    a.build(b.allPolygons());
-    return CSG.fromPolygons(a.allPolygons());
-  },
-
-  // Return a new CSG solid representing space in this solid but not in the
-  // solid `csg`. Neither this solid nor the solid `csg` are modified.
-  // 
-  //     A.subtract(B)
-  // 
-  //     +-------+            +-------+
-  //     |       |            |       |
-  //     |   A   |            |       |
-  //     |    +--+----+   =   |    +--+
-  //     +----+--+    |       +----+
-  //          |   B   |
-  //          |       |
-  //          +-------+
-  // 
-  subtract: function(csg) {
-    var a = new CSG.Node(this.clone().polygons);
-    var b = new CSG.Node(csg.clone().polygons);
-    a.invert();
-    a.clipTo(b);
-    b.clipTo(a);
-    b.invert();
-    b.clipTo(a);
-    b.invert();
-    a.build(b.allPolygons());
-    a.invert();
-    return CSG.fromPolygons(a.allPolygons());
-  },
-
-  // Return a new CSG solid representing space both this solid and in the
-  // solid `csg`. Neither this solid nor the solid `csg` are modified.
-  // 
-  //     A.intersect(B)
-  // 
-  //     +-------+
-  //     |       |
-  //     |   A   |
-  //     |    +--+----+   =   +--+
-  //     +----+--+    |       +--+
-  //          |   B   |
-  //          |       |
-  //          +-------+
-  // 
-  intersect: function(csg) {
-    var a = new CSG.Node(this.clone().polygons);
-    var b = new CSG.Node(csg.clone().polygons);
-    a.invert();
-    b.clipTo(a);
-    b.invert();
-    a.clipTo(b);
-    b.clipTo(a);
-    a.build(b.allPolygons());
-    a.invert();
-    return CSG.fromPolygons(a.allPolygons());
-  },
-
-  // Return a new CSG solid with solid and empty space switched. This solid is
-  // not modified.
-  inverse: function() {
-    var csg = this.clone();
-    csg.polygons.map(function(p) { p.flip(); });
-    return csg;
-  }
-};
-
-// Construct an axis-aligned solid cuboid. Optional parameters are `center` and
-// `radius`, which default to `[0, 0, 0]` and `[1, 1, 1]`. The radius can be
-// specified using a single number or a list of three numbers, one for each axis.
-// 
-// Example code:
-// 
-//     var cube = CSG.cube({
-//       center: [0, 0, 0],
-//       radius: 1
-//     });
-CSG.cube = function(options) {
-  options = options || {};
-  var c = new CSG.Vector(options.center || [0, 0, 0]);
-  var r = !options.radius ? [1, 1, 1] : options.radius.length ?
-           options.radius : [options.radius, options.radius, options.radius];
-  return CSG.fromPolygons([
-    [[0, 4, 6, 2], [-1, 0, 0]],
-    [[1, 3, 7, 5], [+1, 0, 0]],
-    [[0, 1, 5, 4], [0, -1, 0]],
-    [[2, 6, 7, 3], [0, +1, 0]],
-    [[0, 2, 3, 1], [0, 0, -1]],
-    [[4, 5, 7, 6], [0, 0, +1]]
-  ].map(function(info) {
-    return new CSG.Polygon(info[0].map(function(i) {
-      var pos = new CSG.Vector(
-        c.x + r[0] * (2 * !!(i & 1) - 1),
-        c.y + r[1] * (2 * !!(i & 2) - 1),
-        c.z + r[2] * (2 * !!(i & 4) - 1)
-      );
-      return new CSG.Vertex(pos, new CSG.Vector(info[1]));
-    }));
-  }));
-};
-
-// Construct a solid sphere. Optional parameters are `center`, `radius`,
-// `slices`, and `stacks`, which default to `[0, 0, 0]`, `1`, `16`, and `8`.
-// The `slices` and `stacks` parameters control the tessellation along the
-// longitude and latitude directions.
-// 
-// Example usage:
-// 
-//     var sphere = CSG.sphere({
-//       center: [0, 0, 0],
-//       radius: 1,
-//       slices: 16,
-//       stacks: 8
-//     });
-CSG.sphere = function(options) {
-  options = options || {};
-  var c = new CSG.Vector(options.center || [0, 0, 0]);
-  var r = options.radius || 1;
-  var slices = options.slices || 16;
-  var stacks = options.stacks || 8;
-  var polygons = [], vertices;
-  function vertex(theta, phi) {
-    theta *= Math.PI * 2;
-    phi *= Math.PI;
-    var dir = new CSG.Vector(
-      Math.cos(theta) * Math.sin(phi),
-      Math.cos(phi),
-      Math.sin(theta) * Math.sin(phi)
-    );
-    vertices.push(new CSG.Vertex(c.plus(dir.times(r)), dir));
-  }
-  for (var i = 0; i < slices; i++) {
-    for (var j = 0; j < stacks; j++) {
-      vertices = [];
-      vertex(i / slices, j / stacks);
-      if (j > 0) vertex((i + 1) / slices, j / stacks);
-      if (j < stacks - 1) vertex((i + 1) / slices, (j + 1) / stacks);
-      vertex(i / slices, (j + 1) / stacks);
-      polygons.push(new CSG.Polygon(vertices));
-    }
-  }
-  return CSG.fromPolygons(polygons);
-};
-
-// Construct a solid cylinder. Optional parameters are `start`, `end`,
-// `radius`, and `slices`, which default to `[0, -1, 0]`, `[0, 1, 0]`, `1`, and
-// `16`. The `slices` parameter controls the tessellation.
-// 
-// Example usage:
-// 
-//     var cylinder = CSG.cylinder({
-//       start: [0, -1, 0],
-//       end: [0, 1, 0],
-//       radius: 1,
-//       slices: 16
-//     });
-CSG.cylinder = function(options) {
-  options = options || {};
-  var s = new CSG.Vector(options.start || [0, -1, 0]);
-  var e = new CSG.Vector(options.end || [0, 1, 0]);
-  var ray = e.minus(s);
-  var r = options.radius || 1;
-  var slices = options.slices || 16;
-  var axisZ = ray.unit(), isY = (Math.abs(axisZ.y) > 0.5);
-  var axisX = new CSG.Vector(isY, !isY, 0).cross(axisZ).unit();
-  var axisY = axisX.cross(axisZ).unit();
-  var start = new CSG.Vertex(s, axisZ.negated());
-  var end = new CSG.Vertex(e, axisZ.unit());
-  var polygons = [];
-  function point(stack, slice, normalBlend) {
-    var angle = slice * Math.PI * 2;
-    var out = axisX.times(Math.cos(angle)).plus(axisY.times(Math.sin(angle)));
-    var pos = s.plus(ray.times(stack)).plus(out.times(r));
-    var normal = out.times(1 - Math.abs(normalBlend)).plus(axisZ.times(normalBlend));
-    return new CSG.Vertex(pos, normal);
-  }
-  for (var i = 0; i < slices; i++) {
-    var t0 = i / slices, t1 = (i + 1) / slices;
-    polygons.push(new CSG.Polygon([start, point(0, t0, -1), point(0, t1, -1)]));
-    polygons.push(new CSG.Polygon([point(0, t1, 0), point(0, t0, 0), point(1, t0, 0), point(1, t1, 0)]));
-    polygons.push(new CSG.Polygon([end, point(1, t1, 1), point(1, t0, 1)]));
-  }
-  return CSG.fromPolygons(polygons);
-};
-
-// # class Vector
-
-// Represents a 3D vector.
-// 
-// Example usage:
-// 
-//     new CSG.Vector(1, 2, 3);
-//     new CSG.Vector([1, 2, 3]);
-//     new CSG.Vector({ x: 1, y: 2, z: 3 });
-
-CSG.Vector = function(x, y, z) {
-  if (arguments.length == 3) {
-    this.x = x;
-    this.y = y;
-    this.z = z;
-  } else if ('x' in x) {
-    this.x = x.x;
-    this.y = x.y;
-    this.z = x.z;
-  } else {
-    this.x = x[0];
-    this.y = x[1];
-    this.z = x[2];
-  }
-};
-
-CSG.Vector.prototype = {
-  clone: function() {
-    return new CSG.Vector(this.x, this.y, this.z);
-  },
-
-  negated: function() {
-    return new CSG.Vector(-this.x, -this.y, -this.z);
-  },
-
-  plus: function(a) {
-    return new CSG.Vector(this.x + a.x, this.y + a.y, this.z + a.z);
-  },
-
-  minus: function(a) {
-    return new CSG.Vector(this.x - a.x, this.y - a.y, this.z - a.z);
-  },
-
-  times: function(a) {
-    return new CSG.Vector(this.x * a, this.y * a, this.z * a);
-  },
-
-  dividedBy: function(a) {
-    return new CSG.Vector(this.x / a, this.y / a, this.z / a);
-  },
-
-  dot: function(a) {
-    return this.x * a.x + this.y * a.y + this.z * a.z;
-  },
-
-  lerp: function(a, t) {
-    return this.plus(a.minus(this).times(t));
-  },
-
-  length: function() {
-    return Math.sqrt(this.dot(this));
-  },
-
-  unit: function() {
-    return this.dividedBy(this.length());
-  },
-
-  cross: function(a) {
-    return new CSG.Vector(
-      this.y * a.z - this.z * a.y,
-      this.z * a.x - this.x * a.z,
-      this.x * a.y - this.y * a.x
-    );
-  }
-};
-
-// # class Vertex
-
-// Represents a vertex of a polygon. Use your own vertex class instead of this
-// one to provide additional features like texture coordinates and vertex
-// colors. Custom vertex classes need to provide a `pos` property and `clone()`,
-// `flip()`, and `interpolate()` methods that behave analogous to the ones
-// defined by `CSG.Vertex`. This class provides `normal` so convenience
-// functions like `CSG.sphere()` can return a smooth vertex normal, but `normal`
-// is not used anywhere else.
-
-CSG.Vertex = function(pos, normal) {
-  this.pos = new CSG.Vector(pos);
-  this.normal = new CSG.Vector(normal);
-};
-
-CSG.Vertex.prototype = {
-  clone: function() {
-    return new CSG.Vertex(this.pos.clone(), this.normal.clone());
-  },
-
-  // Invert all orientation-specific data (e.g. vertex normal). Called when the
-  // orientation of a polygon is flipped.
-  flip: function() {
-    this.normal = this.normal.negated();
-  },
-
-  // Create a new vertex between this vertex and `other` by linearly
-  // interpolating all properties using a parameter of `t`. Subclasses should
-  // override this to interpolate additional properties.
-  interpolate: function(other, t) {
-    return new CSG.Vertex(
-      this.pos.lerp(other.pos, t),
-      this.normal.lerp(other.normal, t)
-    );
-  }
-};
-
-// # class Plane
-
-// Represents a plane in 3D space.
-
-CSG.Plane = function(normal, w) {
-  this.normal = normal;
-  this.w = w;
-};
-
-// `CSG.Plane.EPSILON` is the tolerance used by `splitPolygon()` to decide if a
-// point is on the plane.
-CSG.Plane.EPSILON = 1e-5;
-
-CSG.Plane.fromPoints = function(a, b, c) {
-  var n = b.minus(a).cross(c.minus(a)).unit();
-  return new CSG.Plane(n, n.dot(a));
-};
-
-CSG.Plane.prototype = {
-  clone: function() {
-    return new CSG.Plane(this.normal.clone(), this.w);
-  },
-
-  flip: function() {
-    this.normal = this.normal.negated();
-    this.w = -this.w;
-  },
-
-  // Split `polygon` by this plane if needed, then put the polygon or polygon
-  // fragments in the appropriate lists. Coplanar polygons go into either
-  // `coplanarFront` or `coplanarBack` depending on their orientation with
-  // respect to this plane. Polygons in front or in back of this plane go into
-  // either `front` or `back`.
-  splitPolygon: function(polygon, coplanarFront, coplanarBack, front, back) {
-    var COPLANAR = 0;
-    var FRONT = 1;
-    var BACK = 2;
-    var SPANNING = 3;
-
-    // Classify each point as well as the entire polygon into one of the above
-    // four classes.
-    var polygonType = 0;
-    var types = [];
-    for (var i = 0; i < polygon.vertices.length; i++) {
-      var t = this.normal.dot(polygon.vertices[i].pos) - this.w;
-      var type = (t < -CSG.Plane.EPSILON) ? BACK : (t > CSG.Plane.EPSILON) ? FRONT : COPLANAR;
-      polygonType |= type;
-      types.push(type);
-    }
-
-    // Put the polygon in the correct list, splitting it when necessary.
-    switch (polygonType) {
-      case COPLANAR:
-        (this.normal.dot(polygon.plane.normal) > 0 ? coplanarFront : coplanarBack).push(polygon);
-        break;
-      case FRONT:
-        front.push(polygon);
-        break;
-      case BACK:
-        back.push(polygon);
-        break;
-      case SPANNING:
-        var f = [], b = [];
-        for (var i = 0; i < polygon.vertices.length; i++) {
-          var j = (i + 1) % polygon.vertices.length;
-          var ti = types[i], tj = types[j];
-          var vi = polygon.vertices[i], vj = polygon.vertices[j];
-          if (ti != BACK) f.push(vi);
-          if (ti != FRONT) b.push(ti != BACK ? vi.clone() : vi);
-          if ((ti | tj) == SPANNING) {
-            var t = (this.w - this.normal.dot(vi.pos)) / this.normal.dot(vj.pos.minus(vi.pos));
-            var v = vi.interpolate(vj, t);
-            f.push(v);
-            b.push(v.clone());
-          }
-        }
-        if (f.length >= 3) front.push(new CSG.Polygon(f, polygon.shared));
-        if (b.length >= 3) back.push(new CSG.Polygon(b, polygon.shared));
-        break;
-    }
-  }
-};
-
-// # class Polygon
-
-// Represents a convex polygon. The vertices used to initialize a polygon must
-// be coplanar and form a convex loop. They do not have to be `CSG.Vertex`
-// instances but they must behave similarly (duck typing can be used for
-// customization).
-// 
-// Each convex polygon has a `shared` property, which is shared between all
-// polygons that are clones of each other or were split from the same polygon.
-// This can be used to define per-polygon properties (such as surface color).
-
-CSG.Polygon = function(vertices, shared) {
-  this.vertices = vertices;
-  this.shared = shared;
-  this.plane = CSG.Plane.fromPoints(vertices[0].pos, vertices[1].pos, vertices[2].pos);
-};
-
-CSG.Polygon.prototype = {
-  clone: function() {
-    var vertices = this.vertices.map(function(v) { return v.clone(); });
-    return new CSG.Polygon(vertices, this.shared);
-  },
-
-  flip: function() {
-    this.vertices.reverse().map(function(v) { v.flip(); });
-    this.plane.flip();
-  }
-};
-
-// # class Node
-
-// Holds a node in a BSP tree. A BSP tree is built from a collection of polygons
-// by picking a polygon to split along. That polygon (and all other coplanar
-// polygons) are added directly to that node and the other polygons are added to
-// the front and/or back subtrees. This is not a leafy BSP tree since there is
-// no distinction between internal and leaf nodes.
-
-CSG.Node = function(polygons) {
-  this.plane = null;
-  this.front = null;
-  this.back = null;
-  this.polygons = [];
-  if (polygons) this.build(polygons);
-};
-
-CSG.Node.prototype = {
-  clone: function() {
-    var node = new CSG.Node();
-    node.plane = this.plane && this.plane.clone();
-    node.front = this.front && this.front.clone();
-    node.back = this.back && this.back.clone();
-    node.polygons = this.polygons.map(function(p) { return p.clone(); });
-    return node;
-  },
-
-  // Convert solid space to empty space and empty space to solid space.
-  invert: function() {
-    for (var i = 0; i < this.polygons.length; i++) {
-      this.polygons[i].flip();
-    }
-    this.plane.flip();
-    if (this.front) this.front.invert();
-    if (this.back) this.back.invert();
-    var temp = this.front;
-    this.front = this.back;
-    this.back = temp;
-  },
-
-  // Recursively remove all polygons in `polygons` that are inside this BSP
-  // tree.
-  clipPolygons: function(polygons) {
-    if (!this.plane) return polygons.slice();
-    var front = [], back = [];
-    for (var i = 0; i < polygons.length; i++) {
-      this.plane.splitPolygon(polygons[i], front, back, front, back);
-    }
-    if (this.front) front = this.front.clipPolygons(front);
-    if (this.back) back = this.back.clipPolygons(back);
-    else back = [];
-    return front.concat(back);
-  },
-
-  // Remove all polygons in this BSP tree that are inside the other BSP tree
-  // `bsp`.
-  clipTo: function(bsp) {
-    this.polygons = bsp.clipPolygons(this.polygons);
-    if (this.front) this.front.clipTo(bsp);
-    if (this.back) this.back.clipTo(bsp);
-  },
-
-  // Return a list of all polygons in this BSP tree.
-  allPolygons: function() {
-    var polygons = this.polygons.slice();
-    if (this.front) polygons = polygons.concat(this.front.allPolygons());
-    if (this.back) polygons = polygons.concat(this.back.allPolygons());
-    return polygons;
-  },
-
-  // Build a BSP tree out of `polygons`. When called on an existing tree, the
-  // new polygons are filtered down to the bottom of the tree and become new
-  // nodes there. Each set of polygons is partitioned using the first polygon
-  // (no heuristic is used to pick a good split).
-  build: function(polygons) {
-    if (!polygons.length) return;
-    if (!this.plane) this.plane = polygons[0].plane.clone();
-    var front = [], back = [];
-    for (var i = 0; i < polygons.length; i++) {
-      this.plane.splitPolygon(polygons[i], this.polygons, this.polygons, front, back);
-    }
-    if (front.length) {
-      if (!this.front) this.front = new CSG.Node();
-      this.front.build(front);
-    }
-    if (back.length) {
-      if (!this.back) this.back = new CSG.Node();
-      this.back.build(back);
-    }
-  }
-};
-/*
-Copyright (c) 2012 Rico Possienka 
-
-This software is provided 'as-is', without any express or implied warranty. In no event will the authors be held liable for any damages arising from the use of this software.
-
-Permission is granted to anyone to use this software for any purpose, including commercial applications, and to alter it and redistribute it freely, subject to the following restrictions:
-
- - The origin of this software must not be misrepresented; you must not claim that you wrote the original software. If you use this software in a product, an acknowledgment in the product documentation would be appreciated but is not required.
- - Altered source versions must be plainly marked as such, and must not be misrepresented as being the original software.
- - This notice may not be removed or altered from any source distribution.
-*/
-if(window["WebGLRenderingContext"]) {
-	window["WebGLRenderingContext"]["prototype"]["getSafeContext"] = 
-	(function (){
-		"use strict"; 
-		
-		// var METHODS ... 
-		/* this is autogenerated. Don't edit by hand! */ 
-		var METHODS = 
-		{"releaseShaderCompiler":[{"args":[]}],"getContextAttributes":[{"args":[]}],"isContextLost":[{"args":[]}],"getSupportedExtensions":[{"args":[]}],"getExtension":[{"args":[{"name":"name","type":"DOMString"}]}],"activeTexture":[{"args":[{"name":"texture","type":"GLenum"}]}],"attachShader":[{"args":[{"name":"program","type":"WebGLProgram"},{"name":"shader","type":"WebGLShader"}]}],"bindAttribLocation":[{"args":[{"name":"program","type":"WebGLProgram"},{"name":"index","type":"GLuint"},{"name":"name","type":"DOMString"}]}],"bindBuffer":[{"args":[{"name":"target","type":"GLenum"},{"name":"buffer","type":"WebGLBuffer"}]}],"bindFramebuffer":[{"args":[{"name":"target","type":"GLenum"},{"name":"framebuffer","type":"WebGLFramebuffer"}]}],"bindRenderbuffer":[{"args":[{"name":"target","type":"GLenum"},{"name":"renderbuffer","type":"WebGLRenderbuffer"}]}],"bindTexture":[{"args":[{"name":"target","type":"GLenum"},{"name":"texture","type":"WebGLTexture"}]}],"blendColor":[{"args":[{"name":"red","type":"GLclampf"},{"name":"green","type":"GLclampf"},{"name":"blue","type":"GLclampf"},{"name":"alpha","type":"GLclampf"}]}],"blendEquation":[{"args":[{"name":"mode","type":"GLenum"}]}],"blendEquationSeparate":[{"args":[{"name":"modeRGB","type":"GLenum"},{"name":"modeAlpha","type":"GLenum"}]}],"blendFunc":[{"args":[{"name":"sfactor","type":"GLenum"},{"name":"dfactor","type":"GLenum"}]}],"blendFuncSeparate":[{"args":[{"name":"srcRGB","type":"GLenum"},{"name":"dstRGB","type":"GLenum"},{"name":"srcAlpha","type":"GLenum"},{"name":"dstAlpha","type":"GLenum"}]}],"bufferData":[{"args":[{"name":"target","type":"GLenum"},{"name":"size","type":"GLsizeiptr"},{"name":"usage","type":"GLenum"}]},{"args":[{"name":"target","type":"GLenum"},{"name":"data","type":"ArrayBufferView"},{"name":"usage","type":"GLenum"}]},{"args":[{"name":"target","type":"GLenum"},{"name":"data","type":"ArrayBuffer"},{"name":"usage","type":"GLenum"}]}],"bufferSubData":[{"args":[{"name":"target","type":"GLenum"},{"name":"offset","type":"GLintptr"},{"name":"data","type":"ArrayBufferView"}]},{"args":[{"name":"target","type":"GLenum"},{"name":"offset","type":"GLintptr"},{"name":"data","type":"ArrayBuffer"}]}],"checkFramebufferStatus":[{"args":[{"name":"target","type":"GLenum"}]}],"clear":[{"args":[{"name":"mask","type":"GLbitfield"}]}],"clearColor":[{"args":[{"name":"red","type":"GLclampf"},{"name":"green","type":"GLclampf"},{"name":"blue","type":"GLclampf"},{"name":"alpha","type":"GLclampf"}]}],"clearDepth":[{"args":[{"name":"depth","type":"GLclampf"}]}],"clearStencil":[{"args":[{"name":"s","type":"GLint"}]}],"colorMask":[{"args":[{"name":"red","type":"GLboolean"},{"name":"green","type":"GLboolean"},{"name":"blue","type":"GLboolean"},{"name":"alpha","type":"GLboolean"}]}],"compileShader":[{"args":[{"name":"shader","type":"WebGLShader"}]}],"copyTexImage2D":[{"args":[{"name":"target","type":"GLenum"},{"name":"level","type":"GLint"},{"name":"internalformat","type":"GLenum"},{"name":"x","type":"GLint"},{"name":"y","type":"GLint"},{"name":"width","type":"GLsizei"},{"name":"height","type":"GLsizei"},{"name":"border","type":"GLint"}]}],"copyTexSubImage2D":[{"args":[{"name":"target","type":"GLenum"},{"name":"level","type":"GLint"},{"name":"xoffset","type":"GLint"},{"name":"yoffset","type":"GLint"},{"name":"x","type":"GLint"},{"name":"y","type":"GLint"},{"name":"width","type":"GLsizei"},{"name":"height","type":"GLsizei"}]}],"createBuffer":[{"args":[]}],"createFramebuffer":[{"args":[]}],"createProgram":[{"args":[]}],"createRenderbuffer":[{"args":[]}],"createShader":[{"args":[{"name":"type","type":"GLenum"}]}],"createTexture":[{"args":[]}],"cullFace":[{"args":[{"name":"mode","type":"GLenum"}]}],"deleteBuffer":[{"args":[{"name":"buffer","type":"WebGLBuffer"}]}],"deleteFramebuffer":[{"args":[{"name":"framebuffer","type":"WebGLFramebuffer"}]}],"deleteProgram":[{"args":[{"name":"program","type":"WebGLProgram"}]}],"deleteRenderbuffer":[{"args":[{"name":"renderbuffer","type":"WebGLRenderbuffer"}]}],"deleteShader":[{"args":[{"name":"shader","type":"WebGLShader"}]}],"deleteTexture":[{"args":[{"name":"texture","type":"WebGLTexture"}]}],"depthFunc":[{"args":[{"name":"func","type":"GLenum"}]}],"depthMask":[{"args":[{"name":"flag","type":"GLboolean"}]}],"depthRange":[{"args":[{"name":"zNear","type":"GLclampf"},{"name":"zFar","type":"GLclampf"}]}],"detachShader":[{"args":[{"name":"program","type":"WebGLProgram"},{"name":"shader","type":"WebGLShader"}]}],"disable":[{"args":[{"name":"cap","type":"GLenum"}]}],"disableVertexAttribArray":[{"args":[{"name":"index","type":"GLuint"}]}],"drawArrays":[{"args":[{"name":"mode","type":"GLenum"},{"name":"first","type":"GLint"},{"name":"count","type":"GLsizei"}]}],"drawElements":[{"args":[{"name":"mode","type":"GLenum"},{"name":"count","type":"GLsizei"},{"name":"type","type":"GLenum"},{"name":"offset","type":"GLintptr"}]}],"enable":[{"args":[{"name":"cap","type":"GLenum"}]}],"enableVertexAttribArray":[{"args":[{"name":"index","type":"GLuint"}]}],"finish":[{"args":[]}],"flush":[{"args":[]}],"framebufferRenderbuffer":[{"args":[{"name":"target","type":"GLenum"},{"name":"attachment","type":"GLenum"},{"name":"renderbuffertarget","type":"GLenum"},{"name":"renderbuffer","type":"WebGLRenderbuffer"}]}],"framebufferTexture2D":[{"args":[{"name":"target","type":"GLenum"},{"name":"attachment","type":"GLenum"},{"name":"textarget","type":"GLenum"},{"name":"texture","type":"WebGLTexture"},{"name":"level","type":"GLint"}]}],"frontFace":[{"args":[{"name":"mode","type":"GLenum"}]}],"generateMipmap":[{"args":[{"name":"target","type":"GLenum"}]}],"getActiveAttrib":[{"args":[{"name":"program","type":"WebGLProgram"},{"name":"index","type":"GLuint"}]}],"getActiveUniform":[{"args":[{"name":"program","type":"WebGLProgram"},{"name":"index","type":"GLuint"}]}],"getAttachedShaders":[{"args":[{"name":"program","type":"WebGLProgram"}]}],"getAttribLocation":[{"args":[{"name":"program","type":"WebGLProgram"},{"name":"name","type":"DOMString"}]}],"getParameter":[{"args":[{"name":"pname","type":"GLenum"}]}],"getBufferParameter":[{"args":[{"name":"target","type":"GLenum"},{"name":"pname","type":"GLenum"}]}],"getError":[{"args":[]}],"getFramebufferAttachmentParameter":[{"args":[{"name":"target","type":"GLenum"},{"name":"attachment","type":"GLenum"},{"name":"pname","type":"GLenum"}]}],"getProgramParameter":[{"args":[{"name":"program","type":"WebGLProgram"},{"name":"pname","type":"GLenum"}]}],"getProgramInfoLog":[{"args":[{"name":"program","type":"WebGLProgram"}]}],"getRenderbufferParameter":[{"args":[{"name":"target","type":"GLenum"},{"name":"pname","type":"GLenum"}]}],"getShaderParameter":[{"args":[{"name":"shader","type":"WebGLShader"},{"name":"pname","type":"GLenum"}]}],"getShaderInfoLog":[{"args":[{"name":"shader","type":"WebGLShader"}]}],"getShaderSource":[{"args":[{"name":"shader","type":"WebGLShader"}]}],"getTexParameter":[{"args":[{"name":"target","type":"GLenum"},{"name":"pname","type":"GLenum"}]}],"getUniform":[{"args":[{"name":"program","type":"WebGLProgram"},{"name":"location","type":"WebGLUniformLocation"}]}],"getUniformLocation":[{"args":[{"name":"program","type":"WebGLProgram"},{"name":"name","type":"DOMString"}]}],"getVertexAttrib":[{"args":[{"name":"index","type":"GLuint"},{"name":"pname","type":"GLenum"}]}],"getVertexAttribOffset":[{"args":[{"name":"index","type":"GLuint"},{"name":"pname","type":"GLenum"}]}],"hint":[{"args":[{"name":"target","type":"GLenum"},{"name":"mode","type":"GLenum"}]}],"isBuffer":[{"args":[{"name":"buffer","type":"WebGLBuffer"}]}],"isEnabled":[{"args":[{"name":"cap","type":"GLenum"}]}],"isFramebuffer":[{"args":[{"name":"framebuffer","type":"WebGLFramebuffer"}]}],"isProgram":[{"args":[{"name":"program","type":"WebGLProgram"}]}],"isRenderbuffer":[{"args":[{"name":"renderbuffer","type":"WebGLRenderbuffer"}]}],"isShader":[{"args":[{"name":"shader","type":"WebGLShader"}]}],"isTexture":[{"args":[{"name":"texture","type":"WebGLTexture"}]}],"lineWidth":[{"args":[{"name":"width","type":"GLfloat"}]}],"linkProgram":[{"args":[{"name":"program","type":"WebGLProgram"}]}],"pixelStorei":[{"args":[{"name":"pname","type":"GLenum"},{"name":"param","type":"GLint"}]}],"polygonOffset":[{"args":[{"name":"factor","type":"GLfloat"},{"name":"units","type":"GLfloat"}]}],"readPixels":[{"args":[{"name":"x","type":"GLint"},{"name":"y","type":"GLint"},{"name":"width","type":"GLsizei"},{"name":"height","type":"GLsizei"},{"name":"format","type":"GLenum"},{"name":"type","type":"GLenum"},{"name":"pixels","type":"ArrayBufferView"}]}],"renderbufferStorage":[{"args":[{"name":"target","type":"GLenum"},{"name":"internalformat","type":"GLenum"},{"name":"width","type":"GLsizei"},{"name":"height","type":"GLsizei"}]}],"sampleCoverage":[{"args":[{"name":"value","type":"GLclampf"},{"name":"invert","type":"GLboolean"}]}],"scissor":[{"args":[{"name":"x","type":"GLint"},{"name":"y","type":"GLint"},{"name":"width","type":"GLsizei"},{"name":"height","type":"GLsizei"}]}],"shaderSource":[{"args":[{"name":"shader","type":"WebGLShader"},{"name":"source","type":"DOMString"}]}],"stencilFunc":[{"args":[{"name":"func","type":"GLenum"},{"name":"ref","type":"GLint"},{"name":"mask","type":"GLuint"}]}],"stencilFuncSeparate":[{"args":[{"name":"face","type":"GLenum"},{"name":"func","type":"GLenum"},{"name":"ref","type":"GLint"},{"name":"mask","type":"GLuint"}]}],"stencilMask":[{"args":[{"name":"mask","type":"GLuint"}]}],"stencilMaskSeparate":[{"args":[{"name":"face","type":"GLenum"},{"name":"mask","type":"GLuint"}]}],"stencilOp":[{"args":[{"name":"fail","type":"GLenum"},{"name":"zfail","type":"GLenum"},{"name":"zpass","type":"GLenum"}]}],"stencilOpSeparate":[{"args":[{"name":"face","type":"GLenum"},{"name":"fail","type":"GLenum"},{"name":"zfail","type":"GLenum"},{"name":"zpass","type":"GLenum"}]}],"texImage2D":[{"args":[{"name":"target","type":"GLenum"},{"name":"level","type":"GLint"},{"name":"internalformat","type":"GLenum"},{"name":"width","type":"GLsizei"},{"name":"height","type":"GLsizei"},{"name":"border","type":"GLint"},{"name":"format","type":"GLenum"},{"name":"type","type":"GLenum"},{"name":"pixels","type":"ArrayBufferView"}]},{"args":[{"name":"target","type":"GLenum"},{"name":"level","type":"GLint"},{"name":"internalformat","type":"GLenum"},{"name":"format","type":"GLenum"},{"name":"type","type":"GLenum"},{"name":"pixels","type":"ImageData"}]},{"args":[{"name":"target","type":"GLenum"},{"name":"level","type":"GLint"},{"name":"internalformat","type":"GLenum"},{"name":"format","type":"GLenum"},{"name":"type","type":"GLenum"},{"name":"image","type":"HTMLImageElement"}]},{"args":[{"name":"target","type":"GLenum"},{"name":"level","type":"GLint"},{"name":"internalformat","type":"GLenum"},{"name":"format","type":"GLenum"},{"name":"type","type":"GLenum"},{"name":"canvas","type":"HTMLCanvasElement"}]},{"args":[{"name":"target","type":"GLenum"},{"name":"level","type":"GLint"},{"name":"internalformat","type":"GLenum"},{"name":"format","type":"GLenum"},{"name":"type","type":"GLenum"},{"name":"video","type":"HTMLVideoElement"}]}],"texParameterf":[{"args":[{"name":"target","type":"GLenum"},{"name":"pname","type":"GLenum"},{"name":"param","type":"GLfloat"}]}],"texParameteri":[{"args":[{"name":"target","type":"GLenum"},{"name":"pname","type":"GLenum"},{"name":"param","type":"GLint"}]}],"texSubImage2D":[{"args":[{"name":"target","type":"GLenum"},{"name":"level","type":"GLint"},{"name":"xoffset","type":"GLint"},{"name":"yoffset","type":"GLint"},{"name":"width","type":"GLsizei"},{"name":"height","type":"GLsizei"},{"name":"format","type":"GLenum"},{"name":"type","type":"GLenum"},{"name":"pixels","type":"ArrayBufferView"}]},{"args":[{"name":"target","type":"GLenum"},{"name":"level","type":"GLint"},{"name":"xoffset","type":"GLint"},{"name":"yoffset","type":"GLint"},{"name":"format","type":"GLenum"},{"name":"type","type":"GLenum"},{"name":"pixels","type":"ImageData"}]},{"args":[{"name":"target","type":"GLenum"},{"name":"level","type":"GLint"},{"name":"xoffset","type":"GLint"},{"name":"yoffset","type":"GLint"},{"name":"format","type":"GLenum"},{"name":"type","type":"GLenum"},{"name":"image","type":"HTMLImageElement"}]},{"args":[{"name":"target","type":"GLenum"},{"name":"level","type":"GLint"},{"name":"xoffset","type":"GLint"},{"name":"yoffset","type":"GLint"},{"name":"format","type":"GLenum"},{"name":"type","type":"GLenum"},{"name":"canvas","type":"HTMLCanvasElement"}]},{"args":[{"name":"target","type":"GLenum"},{"name":"level","type":"GLint"},{"name":"xoffset","type":"GLint"},{"name":"yoffset","type":"GLint"},{"name":"format","type":"GLenum"},{"name":"type","type":"GLenum"},{"name":"video","type":"HTMLVideoElement"}]}],"uniform1f":[{"args":[{"name":"location","type":"WebGLUniformLocation"},{"name":"x","type":"GLfloat"}]}],"uniform1fv":[{"args":[{"name":"location","type":"WebGLUniformLocation"},{"name":"v","type":"FloatArray"}]}],"uniform1i":[{"args":[{"name":"location","type":"WebGLUniformLocation"},{"name":"x","type":"GLint"}]}],"uniform1iv":[{"args":[{"name":"location","type":"WebGLUniformLocation"},{"name":"v","type":"Int32Array"}]}],"uniform2f":[{"args":[{"name":"location","type":"WebGLUniformLocation"},{"name":"x","type":"GLfloat"},{"name":"y","type":"GLfloat"}]}],"uniform2fv":[{"args":[{"name":"location","type":"WebGLUniformLocation"},{"name":"v","type":"FloatArray"}]}],"uniform2i":[{"args":[{"name":"location","type":"WebGLUniformLocation"},{"name":"x","type":"GLint"},{"name":"y","type":"GLint"}]}],"uniform2iv":[{"args":[{"name":"location","type":"WebGLUniformLocation"},{"name":"v","type":"Int32Array"}]}],"uniform3f":[{"args":[{"name":"location","type":"WebGLUniformLocation"},{"name":"x","type":"GLfloat"},{"name":"y","type":"GLfloat"},{"name":"z","type":"GLfloat"}]}],"uniform3fv":[{"args":[{"name":"location","type":"WebGLUniformLocation"},{"name":"v","type":"FloatArray"}]}],"uniform3i":[{"args":[{"name":"location","type":"WebGLUniformLocation"},{"name":"x","type":"GLint"},{"name":"y","type":"GLint"},{"name":"z","type":"GLint"}]}],"uniform3iv":[{"args":[{"name":"location","type":"WebGLUniformLocation"},{"name":"v","type":"Int32Array"}]}],"uniform4f":[{"args":[{"name":"location","type":"WebGLUniformLocation"},{"name":"x","type":"GLfloat"},{"name":"y","type":"GLfloat"},{"name":"z","type":"GLfloat"},{"name":"w","type":"GLfloat"}]}],"uniform4fv":[{"args":[{"name":"location","type":"WebGLUniformLocation"},{"name":"v","type":"FloatArray"}]}],"uniform4i":[{"args":[{"name":"location","type":"WebGLUniformLocation"},{"name":"x","type":"GLint"},{"name":"y","type":"GLint"},{"name":"z","type":"GLint"},{"name":"w","type":"GLint"}]}],"uniform4iv":[{"args":[{"name":"location","type":"WebGLUniformLocation"},{"name":"v","type":"Int32Array"}]}],"uniformMatrix2fv":[{"args":[{"name":"location","type":"WebGLUniformLocation"},{"name":"transpose","type":"GLboolean"},{"name":"value","type":"FloatArray"}]}],"uniformMatrix3fv":[{"args":[{"name":"location","type":"WebGLUniformLocation"},{"name":"transpose","type":"GLboolean"},{"name":"value","type":"FloatArray"}]}],"uniformMatrix4fv":[{"args":[{"name":"location","type":"WebGLUniformLocation"},{"name":"transpose","type":"GLboolean"},{"name":"value","type":"FloatArray"}]}],"useProgram":[{"args":[{"name":"program","type":"WebGLProgram"}]}],"validateProgram":[{"args":[{"name":"program","type":"WebGLProgram"}]}],"vertexAttrib1f":[{"args":[{"name":"indx","type":"GLuint"},{"name":"x","type":"GLfloat"}]}],"vertexAttrib1fv":[{"args":[{"name":"indx","type":"GLuint"},{"name":"values","type":"FloatArray"}]}],"vertexAttrib2f":[{"args":[{"name":"indx","type":"GLuint"},{"name":"x","type":"GLfloat"},{"name":"y","type":"GLfloat"}]}],"vertexAttrib2fv":[{"args":[{"name":"indx","type":"GLuint"},{"name":"values","type":"FloatArray"}]}],"vertexAttrib3f":[{"args":[{"name":"indx","type":"GLuint"},{"name":"x","type":"GLfloat"},{"name":"y","type":"GLfloat"},{"name":"z","type":"GLfloat"}]}],"vertexAttrib3fv":[{"args":[{"name":"indx","type":"GLuint"},{"name":"values","type":"FloatArray"}]}],"vertexAttrib4f":[{"args":[{"name":"indx","type":"GLuint"},{"name":"x","type":"GLfloat"},{"name":"y","type":"GLfloat"},{"name":"z","type":"GLfloat"},{"name":"w","type":"GLfloat"}]}],"vertexAttrib4fv":[{"args":[{"name":"indx","type":"GLuint"},{"name":"values","type":"FloatArray"}]}],"vertexAttribPointer":[{"args":[{"name":"indx","type":"GLuint"},{"name":"size","type":"GLint"},{"name":"type","type":"GLenum"},{"name":"normalized","type":"GLboolean"},{"name":"stride","type":"GLsizei"},{"name":"offset","type":"GLintptr"}]}],"viewport":[{"args":[{"name":"x","type":"GLint"},{"name":"y","type":"GLint"},{"name":"width","type":"GLsizei"},{"name":"height","type":"GLsizei"}]}]}
-		;
-		
-		
-		
-		var checkType = {
-			//OpenGL Type                      JS Types 
-			"ArrayBuffer"          : checkType("null", "ArrayBuffer", "Float32Array", "Float64Array", "Int16Array", "Int32Array", "Int8Array", "Uint16Array", "Uint32Array", "Uint8Array", "Uint8ClampedArray", "Array"), 
-			"ArrayBufferView"      : checkType("null", "ArrayBuffer", "Float32Array", "Float64Array", "Int16Array", "Int32Array", "Int8Array", "Uint16Array", "Uint32Array", "Uint8Array", "Uint8ClampedArray", "Array"), 
-			"DOMString"            : checkType("null", "string"), 
-			"FloatArray"           : checkType("null", "Float32Array", "Array"), 
-			"GLbitfield"           : checkType("number"), 
-			"GLboolean"            : checkType("boolean"),  
-			"GLclampf"             : checkType("number"), 
-			"GLenum"               : checkType("number"), 
-			"GLfloat"              : checkType("number"), 
-			"GLint"                : checkType("number"), 
-			"GLintptr"             : checkType("number"), 
-			"GLsizei"              : checkType("number"), 
-			"GLsizeiptr"           : checkType("number"), 
-			"GLuint"               : checkType("number"),
-			"HTMLCanvasElement"    : checkType("null", "HTMLCanvasElement"),
-			"HTMLImageElement"     : checkType("null", "HTMLImageElement"), 
-			"HTMLVideoElement"     : checkType("null", "HTMLVideoElement"), 
-			"ImageData"            : checkType("null", "ImageData"), 
-			"Int32Array"           : checkType("null", "Int32Array", "Array"), 
-			"WebGLBuffer"          : checkType("null", "WebGLBuffer"), 
-			"WebGLFrameBuffer"     : checkType("null", "WebGLFrameBuffer"), 
-			"WebGLProgram"         : checkType("null", "WebGLProgram"), 
-			"WebGLRenderbuffer"    : checkType("null", "WebGLRenderbuffer"), 
-			"WebGLShader"          : checkType("null", "WebGLShader"), 
-			"WebGLTexture"         : checkType("null", "WebGLTexture"), 
-			"WebGLUniformLocation" : checkType("null", "WebGLUniformLocation"), 
-			"float"                : checkType("number"), 
-			"long"                 : checkType("number") 
-		};
-		
-		var checkValue = {
-			//OpenGL Type            Way to check the correct value 
-			"ArrayBuffer"          : checkFloatArray,
-			"ArrayBufferView"      : checkFloatArray,
-			"DOMString"            : ok, 
-			"FloatArray"           : checkFloatArray, 
-			"GLbitfield"           : isInt, 
-			"GLboolean"            : isBool, 
-			"GLclampf"             : isClampf, 
-			"GLenum"               : isInt, 
-			"GLfloat"              : ok, 
-			"GLint"                : isInt, 
-			"GLintptr"             : isInt, 
-			"GLsizei"              : isInt, 
-			"GLsizeiptr"           : isInt, 
-			"GLuint"               : isInt, 
-			"HTMLCanvasElement"    : ok, 
-			"HTMLImageElement"     : ok, 
-			"HTMLVideoElement"     : ok, 
-			"ImageData"            : ok, 
-			"Int32Array"           : checkIntArray, 
-			"WebGLBuffer"          : ok, 
-			"WebGLFrameBuffer"     : ok, 
-			"WebGLProgram"         : ok, 
-			"WebGLRenderbuffer"    : ok, 
-			"WebGLShader"          : ok, 
-			"WebGLTexture"         : ok, 
-			"WebGLUniformLocation" : ok, 
-			"float"                : ok, 
-			"long"                 : isInt
-		};
-		
-		function safeContext (gl, opt) { 
-			var key, value, i, pair, safegl, map, keys, error; 	
-		
-			if(typeof opt === "string") {
-				if(opt === "error") {
-					error = throwError; 
-				}
-				else if(opt === "warn") {
-					error = showWarning; 
-				}
-				else {
-					throw new Error("can't process the option '" + opt + "!"); 
-				}
-			} 
-			else if(typeof opt === "function") {
-				error = opt; 
-			}
-			else {
-				error = showWarning; 
-			}
-		
-			keys = []; 
-		
-			for	(key in gl) {
-				if(key === "getSafeContext") {
-					continue; //ignore myself
-				}
-				keys.push(key); 
-			}
-		
-			map = keys.map(function(key) {
-				var val, type; 
-				val = gl[key]; 
-				type = typeof val; 
-		
-				if(type === "function") {
-					return [key, createSafeCaller(gl, val, key, error)]; 
-				}
-			
-				return [key]; 
-			});
-		
-			safegl = { "isSafeContext" : true }; 
-		
-			//Add static properties. 
-			for(i = 0; i != map.length; i++) {
-				pair = map[i]; 
-				key = pair[0]; 
-				value = pair[1]; 
-			
-				if(value) {
-					//override behaviour with my own function 
-					safegl[key] = value; 
-				} else {
-					(function(key) { 
-						//same behaviour as the original gl context. 
-						Object.defineProperty(safegl, key, {
-							get : function() { return gl[key]; }, 
-							set : function(v) { gl[key] = v; }, 
-							enumerable : true 
-						}); 
-					}(key)); 
-				}
-			}
-		
-			return safegl; 
-		}
-		
-		function createSafeCaller (gl, func, funcname, error) {
-			var glMethods = METHODS[funcname]; 
-			if( !glMethods ) {
-				console.warn("couldn't find reference definition for method " + funcname + "."); 
-				//default behaviour
-				return function() {
-					return func.apply(gl, arguments); 	
-				};
-			}
-		
-			return function() {
-				var funcDef = getFunctionDef(argumentsToArray(arguments), glMethods); 
-		
-				if(!funcDef) {
-					error("couldn't apply arguments (" 
-						+ argumentsToArray(arguments).join(", ") 
-						+ ") to any of the possible schemas:\n" 
-						+ glMethods.map(function(m) { 
-							return "(" + m.args.map(function(arg) { return arg.type; }).join(", ") + ")" 
-						  }).join("\n,") 
-					); 
-				}
-				else {
-					testArgumentValues(argumentsToArray(arguments), funcDef, funcname, error);
-					//call original function 
-					return func.apply(gl, arguments); 
-				}
-				
-				return func.apply(gl, arguments); 
-			};
-		}
-		
-		function argumentsToArray(args) {
-			return Array.prototype.slice.call(args); 
-		}
-		
-		function testArgumentValues(args, funcDef, funcname, error) {
-			var arg, type, name, i; 
-			//check Arguments 
-			//check if type is correct
-			for( i=0; i != args.length; i++) {
-				arg = args[i]; 
-				type = funcDef.args[i].type; 
-				name = funcDef.args[i].name; 
-		
-				if(!checkValue[type](arg)) {
-					error("Argument '" + name + "' in function '" + funcname + "' was expected to be of type '" + type + "' but instead was called with value: " + arg); 
-					return; 
-				}
-			}
-		}
-		
-		function getFunctionDef(args, glMethods) {
-				return glMethods.filter(function(glMethod) {				
-					if(glMethod.args.length !== args.length) { 
-						return false; 
-					} 
-		
-					var i = 0; 
-					return glMethod.args.every(function(glarg) {
-						var ret = checkType[glarg.type](args[i++]); 
-						return ret; 
-					});
-				})[0]; //undefined for no matches 
-		}
-		
-		function throwError(text) {
-			throw new Error(text); 
-		}
-		
-		function showWarning(text) {
-			console.warn(text); 
-		}
-		
-		// ~~~ Type checking methods ~~~  
-		function checkType() {
-			var possibleTypes = argumentsToArray(arguments).map(function(type) { return type.toLowerCase(); });
-			return function(value) {
-				var valueType = toType(value); 
-				return possibleTypes.some(function(type) { return valueType === type; }); 
-			}
-		}
-		
-		function ok() {
-			//Value allready passed the typecheck and so the value is also correct. 
-			return true; 
-		}
-		
-		function checkFloatArray(v) {
-			var type = toType(v); 
-		
-			if(type === "array") {
-				for(var i = 0; i != v.length; i++) {
-					if(!isFloat(v[i])) {
-						return false; 
-					}
-				}
-			}
-		
-			return true; 
-		}
-		
-		function checkIntArray(v) {
-			var type = toType(v); 
-		
-			if(type === "array") {
-				for(var i = 0; i != v.length; i++) {
-					if(!isInt(v[i])) {
-						return false; 
-					}
-				}
-			}
-		
-			return true; 
-		}
-		
-		function isString(v) {
-			return v === null || typeof v === "string"; 
-		}
-		
-		function isFloat(v) {
-			return typeof v === "number"; 
-		}
-		
-		function isInt(v) {
-			return typeof v === "number" && v === ~~v; 
-		}
-		
-		function isBool(v) {
-			return v === true || v === false; 
-		}
-		
-		function isClampf(v) {
-			return isFloat(v) && v >= 0 && v <= 1; 
-		}
-		
-		//Fixing typeof http://javascriptweblog.wordpress.com/2011/08/08/fixing-the-javascript-typeof-operator/ 
-		function toType (obj) {
-			return ({}).toString.call(obj).match(/\s([a-zA-Z0-9]+)/)[1].toLowerCase();
-		}
-		
-
-		return function(option) { return safeContext(this, option); }; 
-	}()); 
-}
-
-//Copyright (c) 2009 The Chromium Authors. All rights reserved.
-//Use of this source code is governed by a BSD-style license that can be
-//found in the LICENSE file.
-
-// Various functions for helping debug WebGL apps.
-
-var WebGLDebugUtils = function() {
-
-/**
- * Wrapped logging function.
- * @param {string} msg Message to log.
- */
-var log = function(msg) {
-  if (window.console && window.console.log) {
-	throw msg; 
-    window.console.log(msg);
-  }
-};
-
-/**
- * Which arguements are enums.
- * @type {!Object.<number, string>}
- */
-var glValidEnumContexts = {
-
-  // Generic setters and getters
-
-  'enable': { 0:true },
-  'disable': { 0:true },
-  'getParameter': { 0:true },
-
-  // Rendering
-
-  'drawArrays': { 0:true },
-  'drawElements': { 0:true, 2:true },
-
-  // Shaders
-
-  'createShader': { 0:true },
-  'getShaderParameter': { 1:true },
-  'getProgramParameter': { 1:true },
-
-  // Vertex attributes
-
-  'getVertexAttrib': { 1:true },
-  'vertexAttribPointer': { 2:true },
-
-  // Textures
-
-  'bindTexture': { 0:true },
-  'activeTexture': { 0:true },
-  'getTexParameter': { 0:true, 1:true },
-  'texParameterf': { 0:true, 1:true },
-  'texParameteri': { 0:true, 1:true, 2:true },
-  'texImage2D': { 0:true, 2:true, 6:true, 7:true },
-  'texSubImage2D': { 0:true, 6:true, 7:true },
-  'copyTexImage2D': { 0:true, 2:true },
-  'copyTexSubImage2D': { 0:true },
-  'generateMipmap': { 0:true },
-
-  // Buffer objects
-
-  'bindBuffer': { 0:true },
-  'bufferData': { 0:true, 2:true },
-  'bufferSubData': { 0:true },
-  'getBufferParameter': { 0:true, 1:true },
-
-  // Renderbuffers and framebuffers
-
-  'pixelStorei': { 0:true, 1:true },
-  'readPixels': { 4:true, 5:true },
-  'bindRenderbuffer': { 0:true },
-  'bindFramebuffer': { 0:true },
-  'checkFramebufferStatus': { 0:true },
-  'framebufferRenderbuffer': { 0:true, 1:true, 2:true },
-  'framebufferTexture2D': { 0:true, 1:true, 2:true },
-  'getFramebufferAttachmentParameter': { 0:true, 1:true, 2:true },
-  'getRenderbufferParameter': { 0:true, 1:true },
-  'renderbufferStorage': { 0:true, 1:true },
-
-  // Frame buffer operations (clear, blend, depth test, stencil)
-
-  'clear': { 0:true },
-  'depthFunc': { 0:true },
-  'blendFunc': { 0:true, 1:true },
-  'blendFuncSeparate': { 0:true, 1:true, 2:true, 3:true },
-  'blendEquation': { 0:true },
-  'blendEquationSeparate': { 0:true, 1:true },
-  'stencilFunc': { 0:true },
-  'stencilFuncSeparate': { 0:true, 1:true },
-  'stencilMaskSeparate': { 0:true },
-  'stencilOp': { 0:true, 1:true, 2:true },
-  'stencilOpSeparate': { 0:true, 1:true, 2:true, 3:true },
-
-  // Culling
-
-  'cullFace': { 0:true },
-  'frontFace': { 0:true },
-};
-
-/**
- * Map of numbers to names.
- * @type {Object}
- */
-var glEnums = null;
-
-/**
- * Initializes this module. Safe to call more than once.
- * @param {!WebGLRenderingContext} ctx A WebGL context. If
- *    you have more than one context it doesn't matter which one
- *    you pass in, it is only used to pull out constants.
- */
-function init(ctx) {
-  if (glEnums == null) {
-    glEnums = { };
-    for (var propertyName in ctx) {
-      if (typeof ctx[propertyName] == 'number') {
-        glEnums[ctx[propertyName]] = propertyName;
-      }
-    }
-  }
-}
-
-/**
- * Checks the utils have been initialized.
- */
-function checkInit() {
-  if (glEnums == null) {
-    throw 'WebGLDebugUtils.init(ctx) not called';
-  }
-}
-
-/**
- * Returns true or false if value matches any WebGL enum
- * @param {*} value Value to check if it might be an enum.
- * @return {boolean} True if value matches one of the WebGL defined enums
- */
-function mightBeEnum(value) {
-  checkInit();
-  return (glEnums[value] !== undefined);
-}
-
-/**
- * Gets an string version of an WebGL enum.
- *
- * Example:
- *   var str = WebGLDebugUtil.glEnumToString(ctx.getError());
- *
- * @param {number} value Value to return an enum for
- * @return {string} The string version of the enum.
- */
-function glEnumToString(value) {
-  checkInit();
-  var name = glEnums[value];
-  return (name !== undefined) ? name :
-      ("*UNKNOWN WebGL ENUM (0x" + value.toString(16) + ")");
-}
-
-/**
- * Returns the string version of a WebGL argument.
- * Attempts to convert enum arguments to strings.
- * @param {string} functionName the name of the WebGL function.
- * @param {number} argumentIndx the index of the argument.
- * @param {*} value The value of the argument.
- * @return {string} The value as a string.
- */
-function glFunctionArgToString(functionName, argumentIndex, value) {
-  var funcInfo = glValidEnumContexts[functionName];
-  if (funcInfo !== undefined) {
-    if (funcInfo[argumentIndex]) {
-      return glEnumToString(value);
-    }
-  }
-  return value.toString();
-}
-
-function makePropertyWrapper(wrapper, original, propertyName) {
-  //log("wrap prop: " + propertyName);
-  wrapper.__defineGetter__(propertyName, function() {
-    return original[propertyName];
-  });
-  // TODO(gmane): this needs to handle properties that take more than
-  // one value?
-  wrapper.__defineSetter__(propertyName, function(value) {
-    //log("set: " + propertyName);
-    original[propertyName] = value;
-  });
-}
-
-// Makes a function that calls a function on another object.
-function makeFunctionWrapper(original, functionName) {
-  //log("wrap fn: " + functionName);
-  var f = original[functionName];
-  return function() {
-    //log("call: " + functionName);
-    var result = f.apply(original, arguments);
-    return result;
-  };
-}
-
-/**
- * Given a WebGL context returns a wrapped context that calls
- * gl.getError after every command and calls a function if the
- * result is not gl.NO_ERROR.
- *
- * @param {!WebGLRenderingContext} ctx The webgl context to
- *        wrap.
- * @param {!function(err, funcName, args): void} opt_onErrorFunc
- *        The function to call when gl.getError returns an
- *        error. If not specified the default function calls
- *        console.log with a message.
- */
-function makeDebugContext(ctx, opt_onErrorFunc) {
-  init(ctx);
-  opt_onErrorFunc = opt_onErrorFunc || function(err, functionName, args) {
-        // apparently we can't do args.join(",");
-        var argStr = "";
-        for (var ii = 0; ii < args.length; ++ii) {
-          argStr += ((ii == 0) ? '' : ', ') +
-              glFunctionArgToString(functionName, ii, args[ii]);
-        }
-        log("WebGL error "+ glEnumToString(err) + " in "+ functionName +
-            "(" + argStr + ")");
-      };
-
-  // Holds booleans for each GL error so after we get the error ourselves
-  // we can still return it to the client app.
-  var glErrorShadow = { };
-
-  // Makes a function that calls a WebGL function and then calls getError.
-  function makeErrorWrapper(ctx, functionName) {
-    return function() {
-      var result = ctx[functionName].apply(ctx, arguments);
-      var err = ctx.getError();
-      if (err != 0) {
-        glErrorShadow[err] = true;
-        opt_onErrorFunc(err, functionName, arguments);
-      }
-      return result;
-    };
-  }
-
-  // Make a an object that has a copy of every property of the WebGL context
-  // but wraps all functions.
-  var wrapper = {};
-  for (var propertyName in ctx) {
-    if (typeof ctx[propertyName] == 'function') {
-       wrapper[propertyName] = makeErrorWrapper(ctx, propertyName);
-     } else {
-       makePropertyWrapper(wrapper, ctx, propertyName);
-     }
-  }
-
-  // Override the getError function with one that returns our saved results.
-  wrapper.getError = function() {
-    for (var err in glErrorShadow) {
-      if (glErrorShadow.hasOwnProperty(err)) {
-        if (glErrorShadow[err]) {
-          glErrorShadow[err] = false;
-          return err;
-        }
-      }
-    }
-    return ctx.NO_ERROR;
-  };
-
-  return wrapper;
-}
-
-function resetToInitialState(ctx) {
-  var numAttribs = ctx.getParameter(ctx.MAX_VERTEX_ATTRIBS);
-  var tmp = ctx.createBuffer();
-  ctx.bindBuffer(ctx.ARRAY_BUFFER, tmp);
-  for (var ii = 0; ii < numAttribs; ++ii) {
-    ctx.disableVertexAttribArray(ii);
-    ctx.vertexAttribPointer(ii, 4, ctx.FLOAT, false, 0, 0);
-    ctx.vertexAttrib1f(ii, 0);
-  }
-  ctx.deleteBuffer(tmp);
-
-  var numTextureUnits = ctx.getParameter(ctx.MAX_TEXTURE_IMAGE_UNITS);
-  for (var ii = 0; ii < numTextureUnits; ++ii) {
-    ctx.activeTexture(ctx.TEXTURE0 + ii);
-    ctx.bindTexture(ctx.TEXTURE_CUBE_MAP, null);
-    ctx.bindTexture(ctx.TEXTURE_2D, null);
-  }
-
-  ctx.activeTexture(ctx.TEXTURE0);
-  ctx.useProgram(null);
-  ctx.bindBuffer(ctx.ARRAY_BUFFER, null);
-  ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, null);
-  ctx.bindFramebuffer(ctx.FRAMEBUFFER, null);
-  ctx.bindRenderbuffer(ctx.RENDERBUFFER, null);
-  ctx.disable(ctx.BLEND);
-  ctx.disable(ctx.CULL_FACE);
-  ctx.disable(ctx.DEPTH_TEST);
-  ctx.disable(ctx.DITHER);
-  ctx.disable(ctx.SCISSOR_TEST);
-  ctx.blendColor(0, 0, 0, 0);
-  ctx.blendEquation(ctx.FUNC_ADD);
-  ctx.blendFunc(ctx.ONE, ctx.ZERO);
-  ctx.clearColor(0, 0, 0, 0);
-  ctx.clearDepth(1);
-  ctx.clearStencil(-1);
-  ctx.colorMask(true, true, true, true);
-  ctx.cullFace(ctx.BACK);
-  ctx.depthFunc(ctx.LESS);
-  ctx.depthMask(true);
-  ctx.depthRange(0, 1);
-  ctx.frontFace(ctx.CCW);
-  ctx.hint(ctx.GENERATE_MIPMAP_HINT, ctx.DONT_CARE);
-  ctx.lineWidth(1);
-  ctx.pixelStorei(ctx.PACK_ALIGNMENT, 4);
-  ctx.pixelStorei(ctx.UNPACK_ALIGNMENT, 4);
-  ctx.pixelStorei(ctx.UNPACK_FLIP_Y_WEBGL, false);
-  ctx.pixelStorei(ctx.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false);
-  // TODO: Delete this IF.
-  if (ctx.UNPACK_COLORSPACE_CONVERSION_WEBGL) {
-    ctx.pixelStorei(ctx.UNPACK_COLORSPACE_CONVERSION_WEBGL, ctx.BROWSER_DEFAULT_WEBGL);
-  }
-  ctx.polygonOffset(0, 0);
-  ctx.sampleCoverage(1, false);
-  ctx.scissor(0, 0, ctx.canvas.width, ctx.canvas.height);
-  ctx.stencilFunc(ctx.ALWAYS, 0, 0xFFFFFFFF);
-  ctx.stencilMask(0xFFFFFFFF);
-  ctx.stencilOp(ctx.KEEP, ctx.KEEP, ctx.KEEP);
-  ctx.viewport(0, 0, ctx.canvas.width, ctx.canvas.height);
-  ctx.clear(ctx.COLOR_BUFFER_BIT | ctx.DEPTH_BUFFER_BIT | ctx.STENCIL_BUFFER_BIT);
-
-  // TODO: This should NOT be needed but Firefox fails with 'hint'
-  while(ctx.getError());
-}
-
-function makeLostContextSimulatingCanvas(canvas) {
-  var unwrappedContext_;
-  var wrappedContext_;
-  var onLost_ = [];
-  var onRestored_ = [];
-  var wrappedContext_ = {};
-  var contextId_ = 1;
-  var contextLost_ = false;
-  var resourceId_ = 0;
-  var resourceDb_ = [];
-  var numCallsToLoseContext_ = 0;
-  var numCalls_ = 0;
-  var canRestore_ = false;
-  var restoreTimeout_ = 0;
-
-  // Holds booleans for each GL error so can simulate errors.
-  var glErrorShadow_ = { };
-
-  canvas.getContext = function(f) {
-    return function() {
-      var ctx = f.apply(canvas, arguments);
-      // Did we get a context and is it a WebGL context?
-      if (ctx instanceof WebGLRenderingContext) {
-        if (ctx != unwrappedContext_) {
-          if (unwrappedContext_) {
-            throw "got different context"
-          }
-          unwrappedContext_ = ctx;
-          wrappedContext_ = makeLostContextSimulatingContext(unwrappedContext_);
-        }
-        return wrappedContext_;
-      }
-      return ctx;
-    }
-  }(canvas.getContext);
-
-  function wrapEvent(listener) {
-    if (typeof(listener) == "function") {
-      return listener;
-    } else {
-      return function(info) {
-        listener.handleEvent(info);
-      }
-    }
-  }
-
-  var addOnContextLostListener = function(listener) {
-    onLost_.push(wrapEvent(listener));
-  };
-
-  var addOnContextRestoredListener = function(listener) {
-    onRestored_.push(wrapEvent(listener));
-  };
-
-
-  function wrapAddEventListener(canvas) {
-    var f = canvas.addEventListener;
-    canvas.addEventListener = function(type, listener, bubble) {
-      switch (type) {
-        case 'webglcontextlost':
-          addOnContextLostListener(listener);
-          break;
-        case 'webglcontextrestored':
-          addOnContextRestoredListener(listener);
-          break;
-        default:
-          f.apply(canvas, arguments);
-      }
-    };
-  }
-
-  wrapAddEventListener(canvas);
-
-  canvas.loseContext = function() {
-    if (!contextLost_) {
-      contextLost_ = true;
-      numCallsToLoseContext_ = 0;
-      ++contextId_;
-      while (unwrappedContext_.getError());
-      clearErrors();
-      glErrorShadow_[unwrappedContext_.CONTEXT_LOST_WEBGL] = true;
-      var event = makeWebGLContextEvent("context lost");
-      var callbacks = onLost_.slice();
-      setTimeout(function() {
-          //log("numCallbacks:" + callbacks.length);
-          for (var ii = 0; ii < callbacks.length; ++ii) {
-            //log("calling callback:" + ii);
-            callbacks[ii](event);
-          }
-          if (restoreTimeout_ >= 0) {
-            setTimeout(function() {
-                canvas.restoreContext();
-              }, restoreTimeout_);
-          }
-        }, 0);
-    }
-  };
-
-  canvas.restoreContext = function() {
-    if (contextLost_) {
-      if (onRestored_.length) {
-        setTimeout(function() {
-            if (!canRestore_) {
-              throw "can not restore. webglcontestlost listener did not call event.preventDefault";
-            }
-            freeResources();
-            resetToInitialState(unwrappedContext_);
-            contextLost_ = false;
-            numCalls_ = 0;
-            canRestore_ = false;
-            var callbacks = onRestored_.slice();
-            var event = makeWebGLContextEvent("context restored");
-            for (var ii = 0; ii < callbacks.length; ++ii) {
-              callbacks[ii](event);
-            }
-          }, 0);
-      }
-    }
-  };
-
-  canvas.loseContextInNCalls = function(numCalls) {
-    if (contextLost_) {
-      throw "You can not ask a lost contet to be lost";
-    }
-    numCallsToLoseContext_ = numCalls_ + numCalls;
-  };
-
-  canvas.getNumCalls = function() {
-    return numCalls_;
-  };
-
-  canvas.setRestoreTimeout = function(timeout) {
-    restoreTimeout_ = timeout;
-  };
-
-  function isWebGLObject(obj) {
-    //return false;
-    return (obj instanceof WebGLBuffer ||
-            obj instanceof WebGLFramebuffer ||
-            obj instanceof WebGLProgram ||
-            obj instanceof WebGLRenderbuffer ||
-            obj instanceof WebGLShader ||
-            obj instanceof WebGLTexture);
-  }
-
-  function checkResources(args) {
-    for (var ii = 0; ii < args.length; ++ii) {
-      var arg = args[ii];
-      if (isWebGLObject(arg)) {
-        return arg.__webglDebugContextLostId__ == contextId_;
-      }
-    }
-    return true;
-  }
-
-  function clearErrors() {
-    var k = Object.keys(glErrorShadow_);
-    for (var ii = 0; ii < k.length; ++ii) {
-      delete glErrorShadow_[k];
-    }
-  }
-
-  function loseContextIfTime() {
-    ++numCalls_;
-    if (!contextLost_) {
-      if (numCallsToLoseContext_ == numCalls_) {
-        canvas.loseContext();
-      }
-    }
-  }
-
-  // Makes a function that simulates WebGL when out of context.
-  function makeLostContextFunctionWrapper(ctx, functionName) {
-    var f = ctx[functionName];
-    return function() {
-      // log("calling:" + functionName);
-      // Only call the functions if the context is not lost.
-      loseContextIfTime();
-      if (!contextLost_) {
-        //if (!checkResources(arguments)) {
-        //  glErrorShadow_[wrappedContext_.INVALID_OPERATION] = true;
-        //  return;
-        //}
-        var result = f.apply(ctx, arguments);
-        return result;
-      }
-    };
-  }
-
-  function freeResources() {
-    for (var ii = 0; ii < resourceDb_.length; ++ii) {
-      var resource = resourceDb_[ii];
-      if (resource instanceof WebGLBuffer) {
-        unwrappedContext_.deleteBuffer(resource);
-      } else if (resource instanceof WebGLFramebuffer) {
-        unwrappedContext_.deleteFramebuffer(resource);
-      } else if (resource instanceof WebGLProgram) {
-        unwrappedContext_.deleteProgram(resource);
-      } else if (resource instanceof WebGLRenderbuffer) {
-        unwrappedContext_.deleteRenderbuffer(resource);
-      } else if (resource instanceof WebGLShader) {
-        unwrappedContext_.deleteShader(resource);
-      } else if (resource instanceof WebGLTexture) {
-        unwrappedContext_.deleteTexture(resource);
-      }
-    }
-  }
-
-  function makeWebGLContextEvent(statusMessage) {
-    return {
-      statusMessage: statusMessage,
-      preventDefault: function() {
-          canRestore_ = true;
-        }
-    };
-  }
-
-  return canvas;
-
-  function makeLostContextSimulatingContext(ctx) {
-    // copy all functions and properties to wrapper
-    for (var propertyName in ctx) {
-      if (typeof ctx[propertyName] == 'function') {
-         wrappedContext_[propertyName] = makeLostContextFunctionWrapper(
-             ctx, propertyName);
-       } else {
-         makePropertyWrapper(wrappedContext_, ctx, propertyName);
-       }
-    }
-
-    // Wrap a few functions specially.
-    wrappedContext_.getError = function() {
-      loseContextIfTime();
-      if (!contextLost_) {
-        var err;
-        while (err = unwrappedContext_.getError()) {
-          glErrorShadow_[err] = true;
-        }
-      }
-      for (var err in glErrorShadow_) {
-        if (glErrorShadow_[err]) {
-          delete glErrorShadow_[err];
-          return err;
-        }
-      }
-      return wrappedContext_.NO_ERROR;
-    };
-
-    var creationFunctions = [
-      "createBuffer",
-      "createFramebuffer",
-      "createProgram",
-      "createRenderbuffer",
-      "createShader",
-      "createTexture"
-    ];
-    for (var ii = 0; ii < creationFunctions.length; ++ii) {
-      var functionName = creationFunctions[ii];
-      wrappedContext_[functionName] = function(f) {
-        return function() {
-          loseContextIfTime();
-          if (contextLost_) {
-            return null;
-          }
-          var obj = f.apply(ctx, arguments);
-          obj.__webglDebugContextLostId__ = contextId_;
-          resourceDb_.push(obj);
-          return obj;
-        };
-      }(ctx[functionName]);
-    }
-
-    var functionsThatShouldReturnNull = [
-      "getActiveAttrib",
-      "getActiveUniform",
-      "getBufferParameter",
-      "getContextAttributes",
-      "getAttachedShaders",
-      "getFramebufferAttachmentParameter",
-      "getParameter",
-      "getProgramParameter",
-      "getProgramInfoLog",
-      "getRenderbufferParameter",
-      "getShaderParameter",
-      "getShaderInfoLog",
-      "getShaderSource",
-      "getTexParameter",
-      "getUniform",
-      "getUniformLocation",
-      "getVertexAttrib"
-    ];
-    for (var ii = 0; ii < functionsThatShouldReturnNull.length; ++ii) {
-      var functionName = functionsThatShouldReturnNull[ii];
-      wrappedContext_[functionName] = function(f) {
-        return function() {
-          loseContextIfTime();
-          if (contextLost_) {
-            return null;
-          }
-          return f.apply(ctx, arguments);
-        }
-      }(wrappedContext_[functionName]);
-    }
-
-    var isFunctions = [
-      "isBuffer",
-      "isEnabled",
-      "isFramebuffer",
-      "isProgram",
-      "isRenderbuffer",
-      "isShader",
-      "isTexture"
-    ];
-    for (var ii = 0; ii < isFunctions.length; ++ii) {
-      var functionName = isFunctions[ii];
-      wrappedContext_[functionName] = function(f) {
-        return function() {
-          loseContextIfTime();
-          if (contextLost_) {
-            return false;
-          }
-          return f.apply(ctx, arguments);
-        }
-      }(wrappedContext_[functionName]);
-    }
-
-    wrappedContext_.checkFramebufferStatus = function(f) {
-      return function() {
-        loseContextIfTime();
-        if (contextLost_) {
-          return wrappedContext_.FRAMEBUFFER_UNSUPPORTED;
-        }
-        return f.apply(ctx, arguments);
-      };
-    }(wrappedContext_.checkFramebufferStatus);
-
-    wrappedContext_.getAttribLocation = function(f) {
-      return function() {
-        loseContextIfTime();
-        if (contextLost_) {
-          return -1;
-        }
-        return f.apply(ctx, arguments);
-      };
-    }(wrappedContext_.getAttribLocation);
-
-    wrappedContext_.getVertexAttribOffset = function(f) {
-      return function() {
-        loseContextIfTime();
-        if (contextLost_) {
-          return 0;
-        }
-        return f.apply(ctx, arguments);
-      };
-    }(wrappedContext_.getVertexAttribOffset);
-
-    wrappedContext_.isContextLost = function() {
-      return contextLost_;
-    };
-
-    return wrappedContext_;
-  }
-}
-
-return {
-    /**
-     * Initializes this module. Safe to call more than once.
-     * @param {!WebGLRenderingContext} ctx A WebGL context. If
-    }
-   *    you have more than one context it doesn't matter which one
-   *    you pass in, it is only used to pull out constants.
-   */
-  'init': init,
-
-  /**
-   * Returns true or false if value matches any WebGL enum
-   * @param {*} value Value to check if it might be an enum.
-   * @return {boolean} True if value matches one of the WebGL defined enums
-   */
-  'mightBeEnum': mightBeEnum,
-
-  /**
-   * Gets an string version of an WebGL enum.
-   *
-   * Example:
-   *   WebGLDebugUtil.init(ctx);
-   *   var str = WebGLDebugUtil.glEnumToString(ctx.getError());
-   *
-   * @param {number} value Value to return an enum for
-   * @return {string} The string version of the enum.
-   */
-  'glEnumToString': glEnumToString,
-
-  /**
-   * Converts the argument of a WebGL function to a string.
-   * Attempts to convert enum arguments to strings.
-   *
-   * Example:
-   *   WebGLDebugUtil.init(ctx);
-   *   var str = WebGLDebugUtil.glFunctionArgToString('bindTexture', 0, gl.TEXTURE_2D);
-   *
-   * would return 'TEXTURE_2D'
-   *
-   * @param {string} functionName the name of the WebGL function.
-   * @param {number} argumentIndx the index of the argument.
-   * @param {*} value The value of the argument.
-   * @return {string} The value as a string.
-   */
-  'glFunctionArgToString': glFunctionArgToString,
-
-  /**
-   * Given a WebGL context returns a wrapped context that calls
-   * gl.getError after every command and calls a function if the
-   * result is not NO_ERROR.
-   *
-   * You can supply your own function if you want. For example, if you'd like
-   * an exception thrown on any GL error you could do this
-   *
-   *    function throwOnGLError(err, funcName, args) {
-   *      throw WebGLDebugUtils.glEnumToString(err) +
-   *            " was caused by call to " + funcName;
-   *    };
-   *
-   *    ctx = WebGLDebugUtils.makeDebugContext(
-   *        canvas.getContext("webgl"), throwOnGLError);
-   *
-   * @param {!WebGLRenderingContext} ctx The webgl context to wrap.
-   * @param {!function(err, funcName, args): void} opt_onErrorFunc The function
-   *     to call when gl.getError returns an error. If not specified the default
-   *     function calls console.log with a message.
-   */
-  'makeDebugContext': makeDebugContext,
-
-  /**
-   * Given a canvas element returns a wrapped canvas element that will
-   * simulate lost context. The canvas returned adds the following functions.
-   *
-   * loseContext:
-   *   simulates a lost context event.
-   *
-   * restoreContext:
-   *   simulates the context being restored.
-   *
-   * lostContextInNCalls:
-   *   loses the context after N gl calls.
-   *
-   * getNumCalls:
-   *   tells you how many gl calls there have been so far.
-   *
-   * setRestoreTimeout:
-   *   sets the number of milliseconds until the context is restored
-   *   after it has been lost. Defaults to 0. Pass -1 to prevent
-   *   automatic restoring.
-   *
-   * @param {!Canvas} canvas The canvas element to wrap.
-   */
-  'makeLostContextSimulatingCanvas': makeLostContextSimulatingCanvas,
-
-  /**
-   * Resets a context to the initial state.
-   * @param {!WebGLRenderingContext} ctx The webgl context to
-   *     reset.
-   */
-  'resetToInitialState': resetToInitialState
-};
-
-}();
-
 var GLT = {}; 
 
 (function(GLT) { 
 	"use strict"; 
 
 	var SIZEOFFLOAT = 4; 
-	var defT = [0,0, 1,0, 0,1]
-	var defN = [1,0,0,0, 0,1,0,0, 0,0,1,0]	
+
+	//enums
+	var SCHEMA_V   = 0 // Only Vertice
+	var SCHEMA_VT  = 1 // Vertice + Textures
+	var SCHEMA_VN  = 2 // Vertice + Normals
+	var SCHEMA_VTN = 3 // Vertice + Textures + Normals
+
+	var rgxWhitespace = /[\t\r\n ]+/g; 
 
 	function parse(text) {
 		var lines = text.split("\n"); 
@@ -1716,6 +24,7 @@ var GLT = {};
 		var indiceV = []; 
 		var indiceN = []; 
 		var indiceT = []; 
+		var faces = 0; 
 		
 		var funcs = {
 			"v" : function(s) {
@@ -1723,9 +32,9 @@ var GLT = {};
 					throw new Error("Can't accept Vertic without 3 components. LINE:" + line); 
 				}
 
-				var x = Number(s[0], 10); 
-				var y = Number(s[1], 10); 
-				var z = Number(s[2], 10); 
+				var x = parseInt(s[0], 10); 
+				var y = parseInt(s[1], 10); 
+				var z = parseInt(s[2], 10); 
 
 				vertice.push(x,y,z,1); 
 			},
@@ -1734,9 +43,9 @@ var GLT = {};
 					throw new Error("Can't accept Normal without 3 components. LINE:" + linenum); 
 				}
 		
-				var x = Number(s[0], 10); 
-				var y = Number(s[1], 10); 
-				var z = Number(s[2], 10); 
+				var x = parseInt(s[0], 10); 
+				var y = parseInt(s[1], 10); 
+				var z = parseInt(s[2], 10); 
 
 				normals.push(x,y,z,0); 
 			},
@@ -1745,63 +54,147 @@ var GLT = {};
 					throw new Error("Can't accept Texture without 2 components. LINE:" + linenum); 
 				}
 		
-				var u = Number(s[0], 10); 
-				var v = Number(s[1], 10); 
+				var u = parseInt(s[0], 10); 
+				var v = parseInt(s[1], 10); 
 
 				textureuv.push(u,v); 
 			},
 			"f" : function(s) {
 				if(!s || s.length != 3) {
 					throw new Error("Can't accept Face without 3 components. LINE:" + linenum); 
-				}					
+				}	
+
+				faces++; 				
 
 				//Push indice
 				for(var i=0; i != 3; i++) {
 					var vtn = s[i].split("/"); 
-					var v = Number(vtn[0], 10); 
-					var t = Number(vtn[1] || "-1", 10); 
-					var n = Number(vtn[2] || "-1", 10); 
+					//Keep in mind that parseInt(undefined, 10) yields NaN and NaN - 1 = NaN. 
+					var v = parseInt(vtn[0], 10) - 1; 
+					var t = parseInt(vtn[1], 10) - 1;
+					var n = parseInt(vtn[2], 10) - 1;
+	
+					console.log(v,t,n); 					
 
 					indiceV.push(v); 
-					if(t !== -1) indiceT.push(t);
-					if(n !== -1) indiceN.push(n);
+					if(t) indiceT.push(t);
+					if(n) indiceN.push(n);
 				}
-
-				console.log("IV: " + indiceV); 
-				console.log("IT: " + indiceT); 
-				console.log("IN: " + indiceN); 
 			}
-		};
 
-		var rgx = /[\t\r\n ]+/g; 
+		};
 
 		for(linenum = 0; linenum != lines.length;) {			
 			line = lines[linenum++].trim();
-			var elements = line.split(rgx);
+			var elements = line.split(rgxWhitespace);
 			var head = elements.shift(); 
 			if(head in funcs) {
 				funcs[head](elements); 
 			}
 		}	
-		
-		console.log(vertice, textureuv, normals); 
-		
-		
+
+		var schema = SCHEMA_V; 
+
+		//Test Integrety
+		if(textureuv.length !== 0 || indiceT.length !== 0) {
+			schema |= SCHEMA_VT; 
+			if(indiceV.length !== indiceT.length) {
+				throw new Error("Texture indice don't match Vertic indice."); 
+			}
+		}
+
+		if(normals.length !== 0 || indiceN.length !== 0) {
+			schema |= SCHEMA_VN; 
+			if(indiceV.length !== indiceN.length) {
+				throw new Error("Normal indice don't match Vertic indice."); 
+			}
+		}
+		console.log("schema", schema); 
+
+		var sizeArray = 0; 
+		var offsetV = 0;
+		var offsetT = 0;
+		var offsetN = 0;
+
+		switch(schema) {
+			case SCHEMA_V: 
+			sizeArray = faces * 3 * 4;
+			offsetV = 0;			
+            offsetT = 0;
+            offsetN = 0;
+			break; 
+
+			case SCHEMA_VT: 
+			sizeArray = faces * 3 * (4 + 2);
+			offsetV = 0;			
+            offsetT = 4;
+            offsetN = 0;
+			break; 
+
+			case SCHEMA_VN: 
+			sizeArray = faces * 3 * (4 + 4);
+			offsetV = 0;			
+            offsetT = 0;
+            offsetN = 4;
+			break; 
+
+			case SCHEMA_VTN: 
+			sizeArray = faces * 3 * (4 + 2 + 4);
+			offsetV = 0;			
+            offsetT = 4;
+            offsetN = 6;
+			break; 
+
+			default: 
+			throw new Error("Schema broken."); 
+		}
+
+		var dataArray = new Float32Array(sizeArray); 
+		var indiceArray = new Float32Array(indiceV); 
+
+		for(var ii=0, di=0, L=faces * 3; ii < L; ii++) {
+			//Push Vertice			
+			dataArray[di++] = vertice[indiceV[ii]+0]; 
+			dataArray[di++] = vertice[indiceV[ii]+1]; 
+			dataArray[di++] = vertice[indiceV[ii]+2]; 
+			dataArray[di++] = vertice[indiceV[ii]+3]; 
+
+			if(schema | SCHEMA_VT) {		
+				//push Texture
+				dataArray[di++] = vertice[indiceT[ii]+0]; 
+				dataArray[di++] = vertice[indiceT[ii]+1]; 
+			}
+
+			if(schema | SCHEMA_VN) {
+				//Push Normals
+				dataArray[di++] = vertice[indiceN[ii]+0]; 
+				dataArray[di++] = vertice[indiceN[ii]+1]; 
+				dataArray[di++] = vertice[indiceN[ii]+2]; 
+				dataArray[di++] = vertice[indiceN[ii]+3]; 
+			}
+		}
+
+		console.log("data", dataArray); 
+		console.log("index", indiceArray); 
 	}	
 
 	GLT.obj = {};
+	GLT.SCHEMA_V = SCHEMA_V; 
+	GLT.SCHEMA_VN = SCHEMA_VN; 
+	GLT.SCHEMA_VT = SCHEMA_VT; 
+	GLT.SCHEMA_VTN = SCHEMA_VTN; 
 	GLT.obj.parse = parse; 
 }(GLT)); 
 (function(GLT) { 
 "use strict"; 
 
-var TEXT = 1; 
+var MTEXT = 1; 
 var MJSON = 2; 
-var SCRIPT = 3; 
-var XML = 4; 
-var IMAGE = 5; 
-var OBJ = 6; 
-var HTML = 7;
+var MSCRIPT = 3; 
+var MXML = 4; 
+var MIMAGE = 5; 
+var MOBJ = 6; 
+var MHTML = 7;
 
 function mimeToType(mime) {
 	mime = mime.toLowerCase(); 
@@ -1811,25 +204,25 @@ function mimeToType(mime) {
 	}
 
 	if(mime === "text/html") {
-		return HTML; 
+		return MHTML; 
 	}
 
 	if(mime === "application/octet-stream") {
-		return OBJ; 
+		return MOBJ; 
 	}
 
 	if(mime.indexOf("javascript") !== -1) {
-		return SCRIPT; 
+		return MSCRIPT; 
 	}
 
 	if(mime.indexOf("xml") !== -1) {
-		return XML; 
+		return MXML; 
 	}
 	if(mime.indexOf("image") !== -1) {
-		return IMAGE; 
+		return MIMAGE; 
 	}
 
-	return TEXT; 
+	return MTEXT; 
 }
 
 function simpleAjaxCall(file, success, error) {
@@ -1844,10 +237,10 @@ function simpleAjaxCall(file, success, error) {
 		if(!abort && (xhr.readyState === 2 || xhr.readyState === 3)){
 			mime = mimeToType(xhr.getResponseHeader("content-type"));
 			if(file.toLowerCase().lastIndexOf(".obj") + 4 === file.length) {
-				mime = OBJ; 
+				mime = MOBJ; 
 			}			
 
-			if(mime === IMAGE) {
+			if(mime === MIMAGE) {
 				//We load a Image: Use Image class
 				abort = true; 
 				xhr.abort(); 
@@ -1867,7 +260,7 @@ function simpleAjaxCall(file, success, error) {
 		if(!abort && xhr.readyState === 4) {
 			var s = xhr.status; 
 			if(s >= 200 && s <= 299 || s === 304 || s ===0) {
-				if(mime === XML) {
+				if(mime === MXML) {
 					success(file, xhr.responseXML);
 				}
 				else if(mime === MJSON) {
@@ -1890,19 +283,8 @@ function simpleAjaxCall(file, success, error) {
 }
 
 function nop() {
+	//Do Nothing 
 } 
-
-function fileIsPicture(name, callback) {
-	var pictureSuffixe = [".jpg", ".jpeg", ".png", ".gif"]; 
-
-	for(var i = 0, suffix; suffix = pictureSuffixe[i++];) {
-		if((name.lastIndexOf(suffix) + suffix.length) === name.length) {
-			callback(true); 
-			return; 
-		}			
-	}
-	callback(false); 
-}
 
 //options = {
 // "files" = ["path1", "path2", ...]
@@ -1950,71 +332,6 @@ function loadFiles(options) {
 
 GLT.loadmanager = {}; 
 GLT.loadmanager.loadFiles = loadFiles; 
-}(GLT)); 
-(function(GLT) {
-"use strict"; 
-
-var names = ["experimental-webgl", "webgl", "moz-webgl", "webkit-3d"];
-function createContext(width, height, node) { 	
-		var canvas;
-		node = node || document.body;  
-		canvas = document.createElement("canvas"); 
-		canvas.width = width || 640; 
-		canvas.height = height || 480; 
-		node.appendChild(canvas); 
-
-		var i; 
-		var name; 	
-		var gl; 
-		for(i = 0; name = names[i++];) {
-			gl = canvas.getContext(name, {alpha : false, preserveDrawingBuffer : true}); 
-			if(gl) {
-				break; 
-			}
-		}
-
-		return gl; 
-}
-
-function createSafeContext(width, height, node) {
-	var gl = createContext(width, height, node); 
-	return WebGLDebugUtils.makeDebugContext(gl).getSafeContext(); 
-}
-
-GLT.createContext = createContext; 
-}(GLT));
-(function(GLT) { 
-"use strict"; 
-//TODO: TESTME 
-
-function addPolygonsToList(list, p) {
-	for(var i = 0; i != p.length; i++) {
-		var vertices = p[i].vertices;
-		addVerticesToList(list, vertices);
-	}
-}
-
-function addVerticesToList(list, vertices, endpoint) {
-	if(!endpoint) {
-		return addVerticesToList(list, vertices, vertices.length - 1);
-	}
-
-	//CSG Polygon ist Konvex und Koplanar. d. h. man kann die
-	//Eckpunkte ganz einfach paarweise zuordnen.
-	pushVerticePosition(list, vertices[0].pos);
-	pushVerticePosition(list, vertices[endpoint - 1].pos);
-	pushVerticePosition(list, vertices[endpoint].pos);
-
-	if(endpoint > 2) {
-		addVerticesToList(list, vertices, endpoint - 1);
-	}
-}
-
-function pushVerticePosition(list, v) {
-	list.push(v.x, v.y, v.z);
-}
-
-//TODO 
 }(GLT)); 
 (function (GLT) {
 	"use strict"; 
@@ -2123,18 +440,18 @@ function pushVerticePosition(list, v) {
 		if(k < SIZE) {
 			keysDown[k] = 1; 
 		}
-	}); 
+	}, false); 
 
 	document.addEventListener("keyup", function(e) {
 		var k = e.keyCode; 
 		if(k < SIZE) {
 			keysDown[k] = 0; 
 		}
-	}); 
+	}, false); 
 
 	window.addEventListener("blur", function() { 
 		cleanKeys(); 	
-	});
+	}, false);
 
 	var codes = {
 		"backspace":8, "tab":9, "enter":13, "shift":16, "ctrl":17, "alt":18, "pause":19, "capslock":20,

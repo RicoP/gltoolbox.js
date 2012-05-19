@@ -42,18 +42,18 @@
 		if(k < SIZE) {
 			keysDown[k] = 1; 
 		}
-	}); 
+	}, false); 
 
 	document.addEventListener("keyup", function(e) {
 		var k = e.keyCode; 
 		if(k < SIZE) {
 			keysDown[k] = 0; 
 		}
-	}); 
+	}, false); 
 
 	window.addEventListener("blur", function() { 
 		cleanKeys(); 	
-	});
+	}, false);
 
 	var codes = {
 		"backspace":8, "tab":9, "enter":13, "shift":16, "ctrl":17, "alt":18, "pause":19, "capslock":20,
