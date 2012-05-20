@@ -1157,8 +1157,8 @@ var GLT = (function() {
 				normals.push(x,y,z,0); 
 			},
 			"vt" : function(s) {
-				if(!s || s.length != 2) {
-					throw new Error("Can't accept Texture without 2 components. LINE:" + linenum); 
+				if(!s || s.length < 2) {
+					throw new Error("Can't accept Texture with less than 2 components. LINE:" + linenum); 
 				}
 		
 				var u = Number(s[0]); 

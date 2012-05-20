@@ -1,2 +1,3 @@
+* parse quads in obj 
 * CSG with vertices + Normals 
 * Check if addEventListener for Keys should capture the event. 
