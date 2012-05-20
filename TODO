@@ -1,6 +1,2 @@
-* Fileloader 
-* Simple Triangle Example (+texture?) 
-* Fix Obj Loader 
-* Load Obj Example 
 * CSG with vertices + Normals 
-* Check if addEventListener for Keys shouldcapture the event. 
+* Check if addEventListener for Keys should capture the event. 
