@@ -20,9 +20,9 @@ function mimeToType(mime) {
 		return MHTML; 
 	}
 
-	if(mime === "application/octet-stream") {
-		return MOBJ; 
-	}
+	//if(mime === "application/octet-stream") {
+	//	return MOBJ; 
+	//}
 
 	if(mime.indexOf("javascript") !== -1) {
 		return MSCRIPT; 
@@ -80,6 +80,14 @@ function simpleAjaxCall(file, success, error) {
 					try {
 						success(file, JSON.parse(xhr.responseText));
 					}	
+					catch(e) {
+						error(file, e); 
+					}
+				}
+				else if(mime === MOBJ) {
+					try {
+						success(file, GLT.obj.parse(xhr.responseText)); 
+					}
 					catch(e) {
 						error(file, e); 
 					}

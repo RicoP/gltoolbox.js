@@ -30,9 +30,9 @@
 					throw new Error("Can't accept Vertic without 3 components. LINE:" + line); 
 				}
 
-				var x = parseInt(s[0], 10); 
-				var y = parseInt(s[1], 10); 
-				var z = parseInt(s[2], 10); 
+				var x = Number(s[0]);  
+				var y = Number(s[1]);  
+				var z = Number(s[2]);  
 
 				vertice.push(x,y,z,1); 
 			},
@@ -40,10 +40,10 @@
 				if(!s || s.length != 3) {
 					throw new Error("Can't accept Normal without 3 components. LINE:" + linenum); 
 				}
-		
-				var x = parseInt(s[0], 10); 
-				var y = parseInt(s[1], 10); 
-				var z = parseInt(s[2], 10); 
+	
+				var x = Number(s[0]);  
+				var y = Number(s[1]);  
+				var z = Number(s[2]);  	
 
 				normals.push(x,y,z,0); 
 			},
@@ -52,8 +52,8 @@
 					throw new Error("Can't accept Texture without 2 components. LINE:" + linenum); 
 				}
 		
-				var u = parseInt(s[0], 10); 
-				var v = parseInt(s[1], 10); 
+				var u = Number(s[0]); 
+				var v = Number(s[1]); 
 
 				textureuv.push(u,v); 
 			},
@@ -75,8 +75,8 @@
 					console.log(v,t,n); 					
 
 					indiceV.push(v); 
-					if(t) indiceT.push(t);
-					if(n) indiceN.push(n);
+					if(t !== NaN) indiceT.push(t);
+					if(n !== NaN) indiceN.push(n);
 				}
 			}
 
@@ -110,76 +110,86 @@
 		console.log("schema", schema); 
 
 		var sizeArray = 0; 
-		var offsetV = 0;
-		var offsetT = 0;
-		var offsetN = 0;
+		var voffset = 0;
+		var toffset = 0;
+		var noffset = 0;
+		var stride = 0; 
+		var packSize = 0; 
 
 		switch(schema) {
 			case SCHEMA_V: 
-			sizeArray = faces * 3 * 4;
-			offsetV = 0;			
-            offsetT = 0;
-            offsetN = 0;
+			stride  = 4; 
 			break; 
 
 			case SCHEMA_VT: 
-			sizeArray = faces * 3 * (4 + 2);
-			offsetV = 0;			
-            offsetT = 4;
-            offsetN = 0;
+			stride  = 4+2; 
+            toffset = 4*SIZEOFFLOAT;
 			break; 
 
 			case SCHEMA_VN: 
-			sizeArray = faces * 3 * (4 + 4);
-			offsetV = 0;			
-            offsetT = 0;
-            offsetN = 4;
+			stride  = 4+4; 
+            noffset = 4*SIZEOFFLOAT;
 			break; 
 
 			case SCHEMA_VTN: 
-			sizeArray = faces * 3 * (4 + 2 + 4);
-			offsetV = 0;			
-            offsetT = 4;
-            offsetN = 6;
+			stride  = 4+2+4; 
+            toffset = 4*SIZEOFFLOAT;
+            noffset = 6*SIZEOFFLOAT;
 			break; 
 
 			default: 
 			throw new Error("Schema broken."); 
 		}
 
-		var dataArray = new Float32Array(sizeArray); 
-		var indiceArray = new Float32Array(indiceV); 
+		sizeArray = faces * 3 * stride;
 
-		for(var ii=0, di=0, L=faces * 3; ii < L; ii++) {
-			//Push Vertice			
-			dataArray[di++] = vertice[indiceV[ii]+0]; 
-			dataArray[di++] = vertice[indiceV[ii]+1]; 
-			dataArray[di++] = vertice[indiceV[ii]+2]; 
-			dataArray[di++] = vertice[indiceV[ii]+3]; 
+		var rawData = new Float32Array(sizeArray); 
 
-			if(schema | SCHEMA_VT) {		
-				//push Texture
-				dataArray[di++] = vertice[indiceT[ii]+0]; 
-				dataArray[di++] = vertice[indiceT[ii]+1]; 
+		for(var i = 0; i != indiceV.length; i++) {
+			var s = i * stride; 
+			rawData[s+0] = vertice[ 4*indiceV[i]+0 ]; 
+			rawData[s+1] = vertice[ 4*indiceV[i]+1 ]; 
+			rawData[s+2] = vertice[ 4*indiceV[i]+2 ]; 
+			rawData[s+3] = vertice[ 4*indiceV[i]+3 ]; 
+			
+			if(schema === SCHEMA_VT) {
+				rawData[s+4] = textureuv[ 2*indiceT[i]+0 ];
+				rawData[s+5] = textureuv[ 2*indiceT[i]+1 ];
 			}
+			else if(schema === SCHEMA_VN) {
+				rawData[s+4] = normals[ 4*indiceN[i]+0 ];
+				rawData[s+5] = normals[ 4*indiceN[i]+1 ];
+				rawData[s+6] = normals[ 4*indiceN[i]+2 ];
+				rawData[s+7] = normals[ 4*indiceN[i]+3 ];
 
-			if(schema | SCHEMA_VN) {
-				//Push Normals
-				dataArray[di++] = vertice[indiceN[ii]+0]; 
-				dataArray[di++] = vertice[indiceN[ii]+1]; 
-				dataArray[di++] = vertice[indiceN[ii]+2]; 
-				dataArray[di++] = vertice[indiceN[ii]+3]; 
+			}
+			else if(schema === SCHEMA_VTN) {
+				rawData[s+4] = textureuv[ 2*indiceT[i]+0 ];
+				rawData[s+5] = textureuv[ 2*indiceT[i]+1 ];
+
+				rawData[s+6] = normals[ 4*indiceN[i]+0 ];
+				rawData[s+7] = normals[ 4*indiceN[i]+1 ];
+				rawData[s+8] = normals[ 4*indiceN[i]+2 ];
+				rawData[s+9] = normals[ 4*indiceN[i]+3 ];
 			}
 		}
 
-		console.log("data", dataArray); 
-		console.log("index", indiceArray); 
+		console.log("raw", rawData); 
+
+		return {
+			"stride" : stride * SIZEOFFLOAT, 
+			"voffset" : voffset, 
+			"toffset" : toffset, 
+			"noffset" : noffset, 
+			"rawData" : rawData, 
+			"numVertices" : faces * 3
+		};
 	}	
 
 	GLT.obj = {};
-	GLT.SCHEMA_V = SCHEMA_V; 
-	GLT.SCHEMA_VN = SCHEMA_VN; 
-	GLT.SCHEMA_VT = SCHEMA_VT; 
-	GLT.SCHEMA_VTN = SCHEMA_VTN; 
-	GLT.obj.parse = parse; 
+	GLT.obj.SCHEMA_V   = SCHEMA_V; 
+	GLT.obj.SCHEMA_VN  = SCHEMA_VN; 
+	GLT.obj.SCHEMA_VT  = SCHEMA_VT; 
+	GLT.obj.SCHEMA_VTN = SCHEMA_VTN; 
+	GLT.obj.parse      = parse; 
 }(GLT)); 

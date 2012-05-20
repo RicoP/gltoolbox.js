@@ -41,11 +41,11 @@ var requestGameFrame = (function() {
 			time.delta = (now - lasttime) / 1000.0; 
 			time.total = (now - starttime) / 1000.0; 
 
-			joyfuncs.update(); 
+			//joyfuncs.update(); 
 
 			callback(loopObject); 
 
-			keyfuncs.setOldKeyState(); 
+			//keyfuncs.setOldKeyState(); 
 			lasttime = now; 
 			loopObject.frame++;
 		}); 
