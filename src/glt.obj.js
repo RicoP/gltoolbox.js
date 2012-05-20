@@ -57,23 +57,30 @@
 
 				textureuv.push(u,v); 
 			},
-			"f" : function(s) {
-				if(!s || s.length != 3) {
-					throw new Error("Can't accept Face without 3 components. LINE:" + linenum); 
+			"f" : function pushFace(s) {
+				if(!s || s.length < 3) {
+					throw new Error("Can't accept Face with less than 3 components. LINE:" + linenum); 
 				}	
+
+				if(s.length > 3) {
+					//let's asume it's convex 
+					for(var n = s.length - 1; n !== 1; n--) {
+						pushFace([s[0], s[n-1], s[n]]); 
+					}							
+					return; 
+				}
 
 				faces++; 				
 
 				//Push indice
-				for(var i=0; i != 3; i++) {
+				for(var i=0; i !== 3; i++) {
 					var vtn = s[i].split("/"); 
 					//Keep in mind that parseInt(undefined, 10) yields NaN and NaN - 1 = NaN. 
 					var v = parseInt(vtn[0], 10) - 1; 
 					var t = parseInt(vtn[1], 10) - 1;
 					var n = parseInt(vtn[2], 10) - 1;
 	
-					console.log(v,t,n); 					
-
+					//console.log(v,t,n); 					
 					indiceV.push(v); 
 					if(t !== NaN) indiceT.push(t);
 					if(n !== NaN) indiceN.push(n);
@@ -107,7 +114,7 @@
 				throw new Error("Normal indice don't match Vertic indice."); 
 			}
 		}
-		console.log("schema", schema); 
+		//console.log("schema", schema); 
 
 		var sizeArray = 0; 
 		var voffset = 0;
@@ -174,7 +181,7 @@
 			}
 		}
 
-		console.log("raw", rawData); 
+		//console.log("raw", rawData); 
 
 		return {
 			"stride" : stride * SIZEOFFLOAT, 

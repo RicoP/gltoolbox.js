@@ -24,7 +24,7 @@ var entity = null;
 GLT.loadmanager.loadFiles({
 	"files" : [
 		"RaspPi_Board_ModelB.obj", 
-		"tex.png", 
+		"tex.jpg", 
 		"shader.vs", 
 		"shader.fs"
 	], 
@@ -38,7 +38,7 @@ GLT.loadmanager.loadFiles({
 });
 
 function setup(files) {
-	entity = files["house.obj"]; 
+	entity = files["RaspPi_Board_ModelB.obj"]; 
 
 	gl.enable( gl.DEPTH_TEST ); 
 	
@@ -78,7 +78,7 @@ function setup(files) {
 
 	gl.useProgram(program); 
 
-	var img = files["tex.png"]; 
+	var img = files["tex.jpg"]; 
 	
 	texture = gl.createTexture(); 
 	gl.bindTexture(gl.TEXTURE_2D, texture); 
@@ -100,6 +100,7 @@ function draw(time) {
 	mat4.translate(modelview, [0, 0, -3]); 
 	mat4.rotateX(modelview, Date.now() / 1000);
 	mat4.rotateZ(modelview, Date.now() / 1500);
+	mat4.scale(modelview, [0.05, 0.05, 0.05]); 
 
 	gl.bindTexture(gl.TEXTURE_2D, texture); 
 	gl.uniform1i(indxTexture, 0); 
