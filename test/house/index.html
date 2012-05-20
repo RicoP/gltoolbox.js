@@ -98,6 +98,8 @@ function draw(time) {
 
 	modelview = mat4.identity(); 
 	mat4.translate(modelview, [0, 0, -3]); 
+	mat4.rotateX(modelview, Date.now() / 1000);
+	mat4.rotateZ(modelview, Date.now() / 1500);
 
 	gl.bindTexture(gl.TEXTURE_2D, texture); 
 	gl.uniform1i(indxTexture, 0); 
