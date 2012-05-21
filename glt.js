@@ -1125,13 +1125,13 @@ var GLT = (function() {
 		var line = ""; 
 		var linenum = 0; 
 		
-		var vertice = []; //[x1,y1,z1,1,x2,y2,z2,1,...]
-		var normals = []; //[x1,y1,z1,0,x2,y2,z2,0,...]
+		var vertice = []; //[x1,y1,z1,x2,y2,z2,...]
+		var normals = []; //[x1,y1,z1,x2,y2,z2,...]
 		var textureuv = []; //[u1,v1,u2,v2,...] 	
 		var indiceV = []; 
 		var indiceN = []; 
 		var indiceT = []; 
-		var faces = 0; 
+		var triangles = 0; 
 		
 		var funcs = {
 			"v" : function(s) {
@@ -1143,7 +1143,7 @@ var GLT = (function() {
 				var y = Number(s[1]);  
 				var z = Number(s[2]);  
 
-				vertice.push(x,y,z,1); 
+				vertice.push(x,y,z); 
 			},
 			"vn" : function(s) {
 				if(!s || s.length != 3) {
@@ -1154,7 +1154,7 @@ var GLT = (function() {
 				var y = Number(s[1]);  
 				var z = Number(s[2]);  	
 
-				normals.push(x,y,z,0); 
+				normals.push(x,y,z); 
 			},
 			"vt" : function(s) {
 				if(!s || s.length < 2) {
@@ -1179,7 +1179,7 @@ var GLT = (function() {
 					return; 
 				}
 
-				faces++; 				
+				triangles++; 				
 
 				//Push indice
 				for(var i=0; i !== 3; i++) {
@@ -1257,27 +1257,33 @@ var GLT = (function() {
 			throw new Error("Schema broken."); 
 		}
 
-		sizeArray = faces * 3 * stride;
+		sizeArray = triangles * 3 * stride;
 
 		var rawData = new Float32Array(sizeArray); 
 		var p = 0; 
+		var vi = 0; 
+		var ti = 0; 
+		var ni = 0; 	
 
 		for(var i = 0; i != indiceV.length; i++) {
-			rawData[p++] = vertice[ 4*indiceV[i]+0 ]; 
-			rawData[p++] = vertice[ 4*indiceV[i]+1 ]; 
-			rawData[p++] = vertice[ 4*indiceV[i]+2 ]; 
-			rawData[p++] = vertice[ 4*indiceV[i]+3 ]; 
+			vi = 3*indiceV[i];
+			rawData[p++] = vertice[ vi++ ]; 
+			rawData[p++] = vertice[ vi++ ]; 
+			rawData[p++] = vertice[ vi ]; 
+			rawData[p++] = 1.0; 
 			
 			if(schema & SCHEMA_VT) {
-				rawData[p++] = textureuv[ 2*indiceT[i]+0 ];
-				rawData[p++] = textureuv[ 2*indiceT[i]+1 ];
+				ti = 2*indiceT[i]; 
+				rawData[p++] = textureuv[ ti++ ];
+				rawData[p++] = textureuv[ ti ];
 			}
 
 			if(schema & SCHEMA_VN) {
-				rawData[p++] = normals[ 4*indiceN[i]+0 ];
-				rawData[p++] = normals[ 4*indiceN[i]+1 ];
-				rawData[p++] = normals[ 4*indiceN[i]+2 ];
-				rawData[p++] = normals[ 4*indiceN[i]+3 ];
+				ni = 3*indiceN[i];
+				rawData[p++] = normals[ ni++ ];
+				rawData[p++] = normals[ ni++ ];
+				rawData[p++] = normals[ ni ];
+				rawData[p++] = 0.0;
 			}
 		}
 
@@ -1290,7 +1296,7 @@ var GLT = (function() {
 			"toffset" : toffset, 
 			"noffset" : noffset, 
 			"rawData" : rawData, 
-			"numVertices" : faces * 3
+			"numVertices" : triangles * 3
 		};
 	}	
 

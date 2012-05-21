@@ -59,6 +59,7 @@ function setup(files) {
 	entity = files[modelname]; 
 
 	gl.enable( gl.DEPTH_TEST ); 
+	gl.enable( gl.CULL_FACE ); 
 	
 	var vertexShader = gl.createShader(gl.VERTEX_SHADER); 
 	gl.shaderSource(vertexShader, files["shader.vs"]);
