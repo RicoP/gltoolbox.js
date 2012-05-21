@@ -1,6 +1,8 @@
 (function(GLT) {
 "use strict"; 
 
+var useKeys = !!GLT.keys; 
+
 var requestAnimationFrame = 
 	window.requestAnimationFrame       || 
 	window.webkitRequestAnimationFrame || 
@@ -45,7 +47,9 @@ var requestGameFrame = (function() {
 
 			callback(loopObject); 
 
-			//keyfuncs.setOldKeyState(); 
+			if(useKeys) {
+				GLT.keys.update(); 
+			}
 			lasttime = now; 
 			loopObject.frame++;
 		}); 

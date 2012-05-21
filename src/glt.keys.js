@@ -75,6 +75,7 @@
 	};
 
 	GLT.keys = {}; 
+	GLT.keys.codes = codes; 
 	GLT.keys.update = update; 
 	GLT.keys.isDown = isDown; 
 	GLT.keys.isUp = isUp; 

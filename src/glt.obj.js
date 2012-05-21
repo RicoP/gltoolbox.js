@@ -4,10 +4,10 @@
 	var SIZEOFFLOAT = 4; 
 
 	//enums
-	var SCHEMA_V   = 0 // Only Vertice
-	var SCHEMA_VT  = 1 // Vertice + Textures
-	var SCHEMA_VN  = 2 // Vertice + Normals
-	var SCHEMA_VTN = 3 // Vertice + Textures + Normals
+	var SCHEMA_V   = 0;                     // Only Vertice
+	var SCHEMA_VT  = 1<<0;                  // Vertice + Textures
+	var SCHEMA_VN  = 1<<1;                  // Vertice + Normals
+	var SCHEMA_VTN = SCHEMA_VT | SCHEMA_VN; // Vertice + Textures + Normals
 
 	var rgxWhitespace = /[\t\r\n ]+/g; 
 
@@ -82,8 +82,8 @@
 	
 					//console.log(v,t,n); 					
 					indiceV.push(v); 
-					if(t !== NaN) indiceT.push(t);
-					if(n !== NaN) indiceN.push(n);
+					if(!isNaN(t)) indiceT.push(t);
+					if(!isNaN(n)) indiceN.push(n);
 				}
 			}
 
@@ -151,40 +151,32 @@
 		sizeArray = faces * 3 * stride;
 
 		var rawData = new Float32Array(sizeArray); 
+		var p = 0; 
 
 		for(var i = 0; i != indiceV.length; i++) {
-			var s = i * stride; 
-			rawData[s+0] = vertice[ 4*indiceV[i]+0 ]; 
-			rawData[s+1] = vertice[ 4*indiceV[i]+1 ]; 
-			rawData[s+2] = vertice[ 4*indiceV[i]+2 ]; 
-			rawData[s+3] = vertice[ 4*indiceV[i]+3 ]; 
+			rawData[p++] = vertice[ 4*indiceV[i]+0 ]; 
+			rawData[p++] = vertice[ 4*indiceV[i]+1 ]; 
+			rawData[p++] = vertice[ 4*indiceV[i]+2 ]; 
+			rawData[p++] = vertice[ 4*indiceV[i]+3 ]; 
 			
-			if(schema === SCHEMA_VT) {
-				rawData[s+4] = textureuv[ 2*indiceT[i]+0 ];
-				rawData[s+5] = textureuv[ 2*indiceT[i]+1 ];
+			if(schema & SCHEMA_VT) {
+				rawData[p++] = textureuv[ 2*indiceT[i]+0 ];
+				rawData[p++] = textureuv[ 2*indiceT[i]+1 ];
 			}
-			else if(schema === SCHEMA_VN) {
-				rawData[s+4] = normals[ 4*indiceN[i]+0 ];
-				rawData[s+5] = normals[ 4*indiceN[i]+1 ];
-				rawData[s+6] = normals[ 4*indiceN[i]+2 ];
-				rawData[s+7] = normals[ 4*indiceN[i]+3 ];
 
-			}
-			else if(schema === SCHEMA_VTN) {
-				rawData[s+4] = textureuv[ 2*indiceT[i]+0 ];
-				rawData[s+5] = textureuv[ 2*indiceT[i]+1 ];
-
-				rawData[s+6] = normals[ 4*indiceN[i]+0 ];
-				rawData[s+7] = normals[ 4*indiceN[i]+1 ];
-				rawData[s+8] = normals[ 4*indiceN[i]+2 ];
-				rawData[s+9] = normals[ 4*indiceN[i]+3 ];
+			if(schema & SCHEMA_VN) {
+				rawData[p++] = normals[ 4*indiceN[i]+0 ];
+				rawData[p++] = normals[ 4*indiceN[i]+1 ];
+				rawData[p++] = normals[ 4*indiceN[i]+2 ];
+				rawData[p++] = normals[ 4*indiceN[i]+3 ];
 			}
 		}
 
 		//console.log("raw", rawData); 
 
 		return {
-			"stride" : stride * SIZEOFFLOAT, 
+			"stride" : stride * SIZEOFFLOAT, //in Bytes 
+			"schema" : schema, 
 			"voffset" : voffset, 
 			"toffset" : toffset, 
 			"noffset" : noffset, 

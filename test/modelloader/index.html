@@ -6,21 +6,29 @@
 	<meta name="viewport" content="width=device-width">
 </head>
 <body>
-<canvas width="640" height="480"></canvas> 
+<div><canvas width="640" height="480"></canvas></div> 
+<progress id="progressbar" value="0" max="100">
+<span id="progressbar-fallback">0</span>%
+</progress>
 <script src="gl-matrix.js"></script>
 <script src="../../glt.js"></script> 
 <script>
 (function() { 
 "use strict"; 
 
-var gl = GLT.createSafeContext(document.getElementsByTagName("canvas")[0]); 
+var gl = GLT.createContext(document.getElementsByTagName("canvas")[0]); 
 var program = null; 
 var texture = null; 
-var modelname = "gourd.obj"; 
+var modelname = "goblet.obj"; 
 
-var projection = mat4.perspective(75, 4/3, 0.1, 8); 
+var projection = mat4.perspective(75, 4/3, 0.1, 1000); 
 var modelview = mat4.identity(); 
 var entity = null; 
+var cameraPos = vec3.create([0, 0, 0]); 
+var cameraDir = vec3.create([0,0,0]); 
+var cameraNormal = vec3.create([0,0,-1]); 
+var cameraUp = vec3.create([0,1,0]); 
+var camera = mat4.lookAt(cameraPos, vec3.add(cameraPos, cameraNormal, cameraDir), cameraUp); 
 
 GLT.loadmanager.loadFiles({
 	"files" : [
@@ -29,6 +37,15 @@ GLT.loadmanager.loadFiles({
 		"shader.vs", 
 		"shader.fs"
 	], 
+	"update" : (function() {
+		var bar = document.getElementById("progressbar"); 
+		var fallback = document.getElementById("progressbar-fallback"); 
+
+		return function(file, progress) {
+			bar.value = 100*progress; 
+			fallback.innerHTML = ~~(100*progress);
+		};
+	}()),
 	"finished" : function(files) {
 		setup(files); 
 		GLT.requestGameFrame(draw); 
@@ -69,13 +86,17 @@ function setup(files) {
 	gl.vertexAttribPointer(0, 4, gl.FLOAT, false, entity.stride, entity.voffset);
 	gl.enableVertexAttribArray(0); 
 
-	//attribute vec2 vTextureCoord;
-	gl.vertexAttribPointer(1, 2, gl.FLOAT, false, entity.stride, entity.toffset);
-	gl.enableVertexAttribArray(1); 
+	if(entity.schema & GLT.obj.SCHEMA_VT) { 
+		//attribute vec2 vTextureCoord;
+		gl.vertexAttribPointer(1, 2, gl.FLOAT, false, entity.stride, entity.toffset);
+		gl.enableVertexAttribArray(1); 
+	}
 
-	//attribute vec4 vNormal;
-	gl.vertexAttribPointer(2, 4, gl.FLOAT, false, entity.stride, entity.noffset);
-	gl.enableVertexAttribArray(2); 
+	if(entity.schema & GLT.obj.SCHEMA_VN) { 
+		//attribute vec4 vNormal;
+		gl.vertexAttribPointer(2, 4, gl.FLOAT, false, entity.stride, entity.noffset);
+		gl.enableVertexAttribArray(2); 
+	}
 
 	gl.useProgram(program); 
 
@@ -90,15 +111,31 @@ function setup(files) {
 }
 
 function draw(time) {
+	var moved = false; 
+
 	gl.clearColor(0,0,0,1); 
 	gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT); 
+
+	if(GLT.keys.isDown(GLT.keys.codes.w)) {
+		cameraPos[2] += 0.1; 
+		moved = true; 
+	}
+	if(GLT.keys.isDown(GLT.keys.codes.s)) {
+		cameraPos[2] -= 0.1; 
+		moved = true; 
+	}
+
+	if(moved) {
+		camera = mat4.lookAt(cameraPos, vec3.add(cameraPos, cameraNormal, cameraDir), cameraUp); 
+	}
 
 	var indxModelView  = gl.getUniformLocation(program, "vModelView") 
 	var indxProjection = gl.getUniformLocation(program, "vProjection");
 	var indxTexture    = gl.getUniformLocation(program, "texture"); 
 
 	modelview = mat4.identity(); 
-	mat4.translate(modelview, [0, 0, -3]); 
+	mat4.multiply(modelview, camera); 
+	//mat4.translate(modelview, [0, 0, -3]); 
 	mat4.rotateX(modelview, Date.now() / 1000);
 	mat4.rotateZ(modelview, Date.now() / 1500);
 	//mat4.scale(modelview, [0.05, 0.05, 0.05]); 
