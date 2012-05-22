@@ -130,9 +130,9 @@ function draw(time) {
 		camera = mat4.lookAt(cameraPos, vec3.add(cameraPos, cameraNormal, cameraDir), cameraUp); 
 	}
 
-	var indxModelView  = gl.getUniformLocation(program, "vModelView") 
-	var indxProjection = gl.getUniformLocation(program, "vProjection");
-	var indxTexture    = gl.getUniformLocation(program, "texture"); 
+	var indxModelView  = gl.getUniformLocation(program, "uModelview") 
+	var indxProjection = gl.getUniformLocation(program, "uProjection");
+	var indxTexture    = gl.getUniformLocation(program, "uTexture"); 
 
 	modelview = mat4.identity(); 
 	mat4.multiply(modelview, camera); 

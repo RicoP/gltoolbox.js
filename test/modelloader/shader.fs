@@ -2,16 +2,14 @@
 precision highp float;
 #endif
 
-varying vec2 texcoord;
-varying vec4 normal; 
+varying vec2 vTextureuv; 
+varying vec4 vNormal; 
 
-uniform sampler2D texture; 
+uniform sampler2D uTexture; 
  
 void main(void) {
-	//vec4 color = texture2D(texture, texcoord); 
- 
-	vec4 n = normalize(normal);  
+	vec3 n = normalize(vNormal.xyz);  
 
-	gl_FragColor = vec4(sin(n.x), cos(n.x), sin(n.z),  1.0); 
+	gl_FragColor = vec4(n.x, n.y, n.z, 1.0); 
 }
 

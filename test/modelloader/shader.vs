@@ -2,19 +2,18 @@
 precision highp float;
 #endif
 
-attribute vec4 vPosition;
-attribute vec2 vTextureCoord;
-attribute vec4 vNormal;
+attribute vec4 aVertex;   
+attribute vec2 aTextureuv;   
+attribute vec4 aNormal;
 
-uniform mat4 vModelView;
-uniform mat4 vProjection; 
+uniform mat4 uModelview;
+uniform mat4 uProjection; 
 
-varying vec2 texcoord;
-varying vec4 normal; 
+varying vec2 vTextureuv; 
+varying vec4 vNormal; 
 
 void main(void) {
-	texcoord = vTextureCoord;  
-	//normal = vNormal; 
-	normal = vProjection * vModelView * vNormal;
-	gl_Position = vProjection * vModelView * vPosition;
+	vTextureuv = aTextureuv; 
+	vNormal = uProjection * uModelview * aNormal;
+	gl_Position = uProjection * uModelview * aVertex; 
 }
