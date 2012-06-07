@@ -38,13 +38,38 @@ function mimeToType(mime) {
 	return MTEXT; 
 }
 
-function simpleAjaxCall(file, success, error) {
+function simpleAjaxCall(data, done, error) {
+	var file; 
+	var respondWithTagObject = typeof data !== "string";
+
+	if(!respondWithTagObject) {
+		file = data; 
+	}
+	else {
+		if(!data.file) {
+			throw new Error("data must contain a file path."); 
+		}
+
+		file = data.file; 
+	}
+
 	var mime = 0; 
 	var abort = false; 
 	var xhr = new XMLHttpRequest(); 
 	xhr.onreadystatechange = onReadyState; 
 	xhr.open('GET', file, true);  
 	xhr.send(null);
+
+	function success(file, respond) {
+		if(!respondWithTagObject) {
+			done(file, respond); 
+		}
+		else {
+			var o = Object.create(data); 
+			o.data = respond; 
+			done(file, o); 
+		}
+	}
 	
 	function onReadyState() {
 		if(!abort && (xhr.readyState === 2 || xhr.readyState === 3)){
