@@ -315,7 +315,6 @@ var WebGLDebugUtils = function() {
 var log = function(msg) {
   if (window.console && window.console.log) {
 	throw msg; 
-    window.console.log(msg);
   }
 };
 
@@ -630,7 +629,8 @@ function resetToInitialState(ctx) {
   ctx.clear(ctx.COLOR_BUFFER_BIT | ctx.DEPTH_BUFFER_BIT | ctx.STENCIL_BUFFER_BIT);
 
   // TODO: This should NOT be needed but Firefox fails with 'hint'
-  while(ctx.getError());
+  while(ctx.getError())
+  {}
 }
 
 function makeLostContextSimulatingCanvas(canvas) {
@@ -711,7 +711,8 @@ function makeLostContextSimulatingCanvas(canvas) {
       contextLost_ = true;
       numCallsToLoseContext_ = 0;
       ++contextId_;
-      while (unwrappedContext_.getError());
+      while (unwrappedContext_.getError())
+	  {}
       clearErrors();
       glErrorShadow_[unwrappedContext_.CONTEXT_LOST_WEBGL] = true;
       var event = makeWebGLContextEvent("context lost");
