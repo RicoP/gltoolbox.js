@@ -19,7 +19,7 @@ function createContext(canvas) {
 
 function createSafeContext(canvas) {
 	var gl = createContext(canvas); 
-	return gl.getSafeContext(); 
+	return WebGLDebugUtils.makeDebugContext(gl).getSafeContext(); 
 }
 
 GLT.createContext = createContext; 

@@ -44,7 +44,7 @@ if(window["WebGLRenderingContext"]) {
 			"ImageData"            : checkType("null", "ImageData"), 
 			"Int32Array"           : checkType("null", "Int32Array", "Array"), 
 			"WebGLBuffer"          : checkType("null", "WebGLBuffer"), 
-			"WebGLFrameBuffer"     : checkType("null", "WebGLFrameBuffer"), 
+			"WebGLFramebuffer"     : checkType("null", "WebGLFramebuffer"), 
 			"WebGLProgram"         : checkType("null", "WebGLProgram"), 
 			"WebGLRenderbuffer"    : checkType("null", "WebGLRenderbuffer"), 
 			"WebGLShader"          : checkType("null", "WebGLShader"), 
@@ -76,7 +76,7 @@ if(window["WebGLRenderingContext"]) {
 			"ImageData"            : ok, 
 			"Int32Array"           : checkIntArray, 
 			"WebGLBuffer"          : ok, 
-			"WebGLFrameBuffer"     : ok, 
+			"WebGLFramebuffer"     : ok, 
 			"WebGLProgram"         : ok, 
 			"WebGLRenderbuffer"    : ok, 
 			"WebGLShader"          : ok, 
@@ -1510,7 +1510,7 @@ function createContext(canvas) {
 
 function createSafeContext(canvas) {
 	var gl = createContext(canvas); 
-	return gl.getSafeContext(); 
+	return WebGLDebugUtils.makeDebugContext(gl).getSafeContext(); 
 }
 
 GLT.createContext = createContext; 
