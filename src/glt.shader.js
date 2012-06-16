@@ -1,4 +1,6 @@
-(function(GLT) {
+//= glt.shader.hjs 
+
+(function() {
 "use strict"; 
 
 function compileProgram(gl, programsource) {
@@ -30,6 +32,5 @@ function compileProgram(gl, programsource) {
 	return program; 
 }
 
-GLT.SHADER = {}; 
 GLT.SHADER.compileProgram = compileProgram;  
-}(GLT)); 
+}()); 

@@ -1,7 +1,9 @@
-(function(GLT) {
+//= glt.gameframe.hjs 
+
+(function() {
 "use strict"; 
 
-var useKeys = !!GLT.keys; 
+var useKeys = !!GLT.KEYS; 
 
 var requestAnimationFrame = 
 	window.requestAnimationFrame       || 
@@ -48,7 +50,7 @@ var requestGameFrame = (function() {
 			callback(loopObject); 
 
 			if(useKeys) {
-				GLT.keys.update(); 
+				GLT.KEYS.update(); 
 			}
 			lasttime = now; 
 			loopObject.frame++;
@@ -56,5 +58,5 @@ var requestGameFrame = (function() {
 	};
 }()); 
 
-GLT.requestGameFrame = requestGameFrame; 
-}(GLT)); 
+GLT.GAMEFRAME.request = requestGameFrame; 
+}()); 

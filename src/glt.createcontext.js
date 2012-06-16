@@ -1,4 +1,6 @@
-(function(GLT) {
+//= glt.context.hjs
+
+(function() {
 "use strict"; 
 
 var names = ["experimental-webgl", "webgl", "moz-webgl", "webkit-3d"];
@@ -17,11 +19,5 @@ function createContext(canvas) {
 		return null; 
 }
 
-function createSafeContext(canvas) {
-	var gl = createContext(canvas); 
-	return WebGLDebugUtils.makeDebugContext(gl).getSafeContext(); 
-}
-
-GLT.createContext = createContext; 
-GLT.createSafeContext = createSafeContext; 
-}(GLT));
+GLT.CONTEXT.create = createContext; 
+}());

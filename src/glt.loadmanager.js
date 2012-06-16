@@ -1,4 +1,6 @@
-(function(GLT) { 
+//= glt.loadmanager.hjs
+
+(function() { 
 "use strict"; 
 
 var MTEXT = 1; 
@@ -176,6 +178,5 @@ function loadFiles(options) {
 	}
 }
 
-GLT.loadmanager = {}; 
-GLT.loadmanager.loadFiles = loadFiles; 
-}(GLT)); 
+GLT.LOADMANAGER.loadFiles = loadFiles; 
+}()); 

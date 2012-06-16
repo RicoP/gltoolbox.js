@@ -1,0 +1,8 @@
+//= glt.hjs
+
+if(!GLT_KEYS_HJS) {
+var GLT_KEYS_HJS = true; 
+GLT.LOADMANAGER = {}; 
+GLT.LOADMANAGER.loadFiles = null; 
+} 
+

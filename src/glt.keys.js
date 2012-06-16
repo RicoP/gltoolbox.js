@@ -1,4 +1,6 @@
-(function(GLT) {
+//= glt.keys.hjs
+
+(function() {
 	"use strict"; 
 
 	var SIZE = 256; 	
@@ -74,11 +76,10 @@
 		"backSlash":220, "closeBraket":221, "quote":222
 	};
 
-	GLT.keys = {}; 
-	GLT.keys.codes = codes; 
-	GLT.keys.update = update; 
-	GLT.keys.isDown = isDown; 
-	GLT.keys.isUp = isUp; 
-	GLT.keys.wasPressed = wasPressed; 
-	GLT.keys.wasReleased = wasReleased;  
-}(GLT));
+	GLT.KEYS.codes = codes; 
+	GLT.KEYS.update = update; 
+	GLT.KEYS.isDown = isDown; 
+	GLT.KEYS.isUp = isUp; 
+	GLT.KEYS.wasPressed = wasPressed; 
+	GLT.KEYS.wasReleased = wasReleased;  
+}());
