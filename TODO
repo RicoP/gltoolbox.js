@@ -1,4 +1,3 @@
-* Testlevel with houses and Phong shading 
 * negative relative values for faces 
 * CSG with vertices + Normals 
 * Check if addEventListener for Keys should capture the event. 
