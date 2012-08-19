@@ -1,6 +1,9 @@
-//= glt.keys.hjs
+#ifndef GLT_KEYS_JS
+#define GLT_KEYS_JS
 
-(function() {
+#include "glt.js" 
+
+(function(GLT) {
 	"use strict"; 
 
 	var SIZE = 256; 	
@@ -76,10 +79,13 @@
 		"backSlash":220, "closeBraket":221, "quote":222
 	};
 
-	GLT.KEYS.codes = codes; 
-	GLT.KEYS.update = update; 
-	GLT.KEYS.isDown = isDown; 
-	GLT.KEYS.isUp = isUp; 
-	GLT.KEYS.wasPressed = wasPressed; 
-	GLT.KEYS.wasReleased = wasReleased;  
-}());
+	GLT.keys = {}; 
+	GLT.keys.codes = codes; 
+	GLT.keys.update = update; 
+	GLT.keys.isDown = isDown; 
+	GLT.keys.isUp = isUp; 
+	GLT.keys.wasPressed = wasPressed; 
+	GLT.keys.wasReleased = wasReleased;  
+}(GLT));
+
+#endif 

@@ -1,6 +1,9 @@
-//= glt.shader.hjs 
+#ifndef GLT_SHADER_JS 
+#define GLT_SHADER_JS 
 
-(function() {
+#include "glt.js"
+
+(function(GLT) {
 "use strict"; 
 
 function compileProgram(gl, programsource) {
@@ -33,4 +36,6 @@ function compileProgram(gl, programsource) {
 }
 
 GLT.SHADER.compileProgram = compileProgram;  
-}()); 
+}(GLT)); 
+
+#endif 

@@ -1,6 +1,9 @@
-//= glt.loadmanager.hjs
+#ifndef GLT_LOADMANAGER_JS 
+#define GLT_LOADMANAGER_JS 
 
-(function() { 
+#include "glt.js" 
+
+(function(GLT) { 
 "use strict"; 
 
 var MTEXT = 1; 
@@ -178,5 +181,8 @@ function loadFiles(options) {
 	}
 }
 
-GLT.LOADMANAGER.loadFiles = loadFiles; 
-}()); 
+GLT.loadmanager = {}; 
+GLT.loadmanager.loadFiles = loadFiles; 
+}(GLT)); 
+
+#endif

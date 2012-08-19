@@ -1,6 +1,9 @@
-//= glt.gameframe.hjs 
+#ifndef GLT_REQUESTGAMEFRAME_JS
+#define GLT_REQUESTGAMEFRAME_JS
 
-(function() {
+#include "glt.js" 
+
+(function(GLT) {
 "use strict"; 
 
 var useKeys = !!GLT.KEYS; 
@@ -58,5 +61,7 @@ var requestGameFrame = (function() {
 	};
 }()); 
 
-GLT.GAMEFRAME.request = requestGameFrame; 
-}()); 
+GLT.requestGameFrame = requestGameFrame; 
+}(GLT)); 
+
+#endif 
