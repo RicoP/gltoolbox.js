@@ -1,3 +1,8 @@
+#ifndef GLT_CREATECONTEXT_JS
+#define GLT_CREATECONTEXT_JS
+
+#include "glt.js"
+
 (function(GLT) {
 "use strict"; 
 
@@ -25,3 +30,5 @@ function createSafeContext(canvas) {
 GLT.createContext = createContext; 
 GLT.createSafeContext = createSafeContext; 
 }(GLT));
+
+#endif 

@@ -1,3 +1,8 @@
+#ifndef GLT_JOYPADS_JS 
+#define GLT_JOYPADS_JS 
+
+#include "glt.js" 
+
 (function (GLT) {
 	"use strict"; 
 
@@ -61,3 +66,5 @@
 	GLT.gamepads.update = update; 
 }(GLT));  
 
+
+#endif 

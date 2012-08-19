@@ -1,3 +1,8 @@
+#ifndef GLT_OBJ_LOADER_JS
+#define GLT_OBJ_LOADER_JS
+
+#include "glt.js" 
+
 (function(GLT) { 
 	"use strict"; 
 
@@ -198,3 +203,5 @@
 	GLT.obj.SCHEMA_VTN = SCHEMA_VTN; 
 	GLT.obj.parse      = parse; 
 }(GLT)); 
+
+#endif 

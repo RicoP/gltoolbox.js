@@ -1,0 +1,4 @@
+#!/bin/sh
+
+cd src
+cat * | cpp -P -undef -nostdinc -Wtrigraphs -fdollars-in-identifiers > ../glt.js 

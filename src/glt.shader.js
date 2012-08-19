@@ -1,3 +1,8 @@
+#ifndef GLT_SHADER_JS 
+#define GLT_SHADER_JS 
+
+#include "glt.js"
+
 (function(GLT) {
 "use strict"; 
 
@@ -33,3 +38,5 @@ function compileProgram(gl, programsource) {
 GLT.SHADER = {}; 
 GLT.SHADER.compileProgram = compileProgram;  
 }(GLT)); 
+
+#endif 

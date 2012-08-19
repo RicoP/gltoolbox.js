@@ -1,3 +1,8 @@
+#ifndef GLT_REQUESTGAMEFRAME_JS
+#define GLT_REQUESTGAMEFRAME_JS
+
+#include "glt.js" 
+
 (function(GLT) {
 "use strict"; 
 
@@ -58,3 +63,5 @@ var requestGameFrame = (function() {
 
 GLT.requestGameFrame = requestGameFrame; 
 }(GLT)); 
+
+#endif 

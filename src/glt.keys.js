@@ -1,3 +1,8 @@
+#ifndef GLT_KEYS_JS
+#define GLT_KEYS_JS
+
+#include "glt.js" 
+
 (function(GLT) {
 	"use strict"; 
 
@@ -82,3 +87,5 @@
 	GLT.keys.wasPressed = wasPressed; 
 	GLT.keys.wasReleased = wasReleased;  
 }(GLT));
+
+#endif 
