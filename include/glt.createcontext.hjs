@@ -1,8 +1,0 @@
-//= glt.hjs
-
-if(!GLT_CONTEXT_HJS) {
-var GLT_CONTEXT_HJS = true; 
-GLT.CONTEXT = {};
-GLT.CONTEXT.create = null; 
-}
-

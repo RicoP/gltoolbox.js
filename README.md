@@ -1,4 +1,4 @@
 gltoolbox.js
 ============
 
-A fork of my Objloader project. 
+A set of tools for WebGL programming.

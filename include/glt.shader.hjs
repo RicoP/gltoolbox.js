@@ -1,8 +1,0 @@
-//= glt.hjs
-
-if(!GLT_SHADER_HJS) {
-var GLT_SHADER_HJS = true; 
-GLT.SHADER = {}; 
-GLT.SHADER.compileProgram = null;  
-} 
-
