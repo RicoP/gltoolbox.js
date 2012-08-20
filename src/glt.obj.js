@@ -6,6 +6,11 @@
 (function(GLT) { 
 	"use strict"; 
 
+	var SCHEMA_V   = 0;  
+	var SCHEMA_VN  = 1; 
+	var SCHEMA_VT  = 2; 
+	var SCHEMA_VTN = SCHEMA_VN | SCHEMA_VT; 
+
 	var SIZEOFFLOAT = 4; 
 
 	var rgxWhitespace = /[\t\r\n ]+/g; 
@@ -97,23 +102,22 @@
 			}
 		}	
 
-		var schema = GLT.OBJ.SCHEMA_V; 
+		var schema = SCHEMA_V; 
 
 		//Test Integrety
 		if(textureuv.length !== 0 || indiceT.length !== 0) {
-			schema |= GLT:OBJ.SCHEMA_VT; 
+			schema |= SCHEMA_VT; 
 			if(indiceV.length !== indiceT.length) {
 				throw new Error("Texture indice don't match Vertic indice."); 
 			}
 		}
 
 		if(normals.length !== 0 || indiceN.length !== 0) {
-			schema |= GLT.OBJ.SCHEMA_VN; 
+			schema |= SCHEMA_VN; 
 			if(indiceV.length !== indiceN.length) {
 				throw new Error("Normal indice don't match Vertic indice."); 
 			}
 		}
-		//console.log("schema", schema); 
 
 		var sizeArray = 0; 
 		var voffset = 0;
@@ -123,21 +127,21 @@
 		var packSize = 0; 
 
 		switch(schema) {
-			case GLT.OBJ.SCHEMA_V: 
+			case SCHEMA_V: 
 			stride  = 4; 
 			break; 
 
-			case GLT.OBJ.SCHEMA_VT: 
+			case SCHEMA_VT: 
 			stride  = 4+2; 
             toffset = 4*SIZEOFFLOAT;
 			break; 
 
-			case GLT.OBJ.SCHEMA_VN: 
+			case SCHEMA_VN: 
 			stride  = 4+4; 
             noffset = 4*SIZEOFFLOAT;
 			break; 
 
-			case GLT.OBJ.SCHEMA_VTN: 
+			case SCHEMA_VTN: 
 			stride  = 4+2+4; 
             toffset = 4*SIZEOFFLOAT;
             noffset = 6*SIZEOFFLOAT;
@@ -162,13 +166,13 @@
 			rawData[p++] = vertice[ vi ]; 
 			rawData[p++] = 1.0; 
 			
-			if(schema & GLT.OBJ.SCHEMA_VT) {
+			if(schema & SCHEMA_VT) {
 				ti = 2*indiceT[i]; 
 				rawData[p++] = textureuv[ ti++ ];
 				rawData[p++] = textureuv[ ti ];
 			}
 
-			if(schema & GLT.OBJ.SCHEMA_VN) {
+			if(schema & SCHEMA_VN) {
 				ni = 3*indiceN[i];
 				rawData[p++] = normals[ ni++ ];
 				rawData[p++] = normals[ ni++ ];
@@ -191,6 +195,10 @@
 	}	
 
 	GLT.obj.parse = parse; 
+	GLT.obj.SCHEMA_V   = SCHEMA_V;  
+	GLT.obj.SCHEMA_VN  = SCHEMA_VN; 
+	GLT.obj.SCHEMA_VT  = SCHEMA_VT; 
+	GLT.obj.SCHEMA_VTN = SCHEMA_VN | SCHEMA_VT; 
 }(GLT)); 
 
 #endif 
