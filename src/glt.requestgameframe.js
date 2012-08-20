@@ -2,11 +2,10 @@
 #define GLT_REQUESTGAMEFRAME_JS
 
 #include "glt.js" 
+#include "glt.keys.js"
 
 (function(GLT) {
 "use strict"; 
-
-var useKeys = !!GLT.KEYS; 
 
 var requestAnimationFrame = 
 	window.requestAnimationFrame       || 
@@ -53,7 +52,7 @@ var requestGameFrame = (function() {
 			callback(loopObject); 
 
 			if(useKeys) {
-				GLT.KEYS.update(); 
+				GLT.keys.update(); 
 			}
 			lasttime = now; 
 			loopObject.frame++;
