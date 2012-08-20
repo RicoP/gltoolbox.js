@@ -22,13 +22,7 @@ function createContext(canvas) {
 		return null; 
 }
 
-function createSafeContext(canvas) {
-	var gl = createContext(canvas); 
-	return WebGLDebugUtils.makeDebugContext(gl).getSafeContext(); 
-}
-
 GLT.createContext = createContext; 
-GLT.createSafeContext = createSafeContext; 
 }(GLT));
 
 #endif 
