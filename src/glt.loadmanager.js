@@ -2,60 +2,104 @@
 #define GLT_LOADMANAGER_JS 
 
 #include "glt.js" 
+#inclide "glt.obj.js" 
+
+#define MIME_TEXT    1 
+#define MIME_JSON    2
+#define MIME_SCRIPT  3
+#define MIME_XML     4 
+#define MIME_IMAGE   5
+#define MIME_OBJ     6 
+#define MIME_HTML    7
 
 (function(GLT) { 
 "use strict"; 
-
-var MTEXT = 1; 
-var MJSON = 2; 
-var MSCRIPT = 3; 
-var MXML = 4; 
-var MIMAGE = 5; 
-var MOBJ = 6; 
-var MHTML = 7;
 
 function mimeToType(mime) {
 	mime = mime.toLowerCase(); 
 
 	if(mime === "application/json") {
-		return MJSON; 
+		return MIME_JSON; 
 	}
 
 	if(mime === "text/html") {
-		return MHTML; 
+		return MIME_HTML; 
 	}
 
-	//if(mime === "application/octet-stream") {
-	//	return MOBJ; 
-	//}
-
 	if(mime.indexOf("javascript") !== -1) {
-		return MSCRIPT; 
+		return MIME_SCRIPT; 
 	}
 
 	if(mime.indexOf("xml") !== -1) {
-		return MXML; 
-	}
-	if(mime.indexOf("image") !== -1) {
-		return MIMAGE; 
+		return MIME_XML; 
 	}
 
-	return MTEXT; 
+	if(mime.indexOf("image") !== -1) {
+		return MIME_IMAGE; 
+	}
+
+	return MIME_TEXT; 
 }
 
-function simpleAjaxCall(data, done, error) {
-	var file; 
-	var respondWithTagObject = typeof data !== "string";
-
-	if(!respondWithTagObject) {
-		file = data; 
-	}
-	else {
-		if(!data.file) {
-			throw new Error("data must contain a file path."); 
+function simpleAjaxCall(key, file, success, error) {
+	function onReadyState() {
+		if(abort) {
+			return; 
 		}
 
-		file = data.file; 
+		if(xhr.readyState === 2 || xhr.readyState === 3){
+			mime = mimeToType(xhr.getResponseHeader("content-type"));
+			if(file.toLowerCase().lastIndexOf(".obj") + 4 === file.length) {
+				mime = MIME_OBJ; 
+			}			
+
+			if(mime === MIME_IMAGE) {
+				//We load a Image: Use Image class
+				abort = true; 
+				xhr.abort(); 
+
+				var image = new Image(); 
+				image.onload = function() {
+					success(key, image); 
+				};
+				image.onerror = function() {
+					error(key, "");
+				}
+				image.src = file; 
+				return; 
+			}
+		}
+
+		if(xhr.readyState === 4) {
+			var s = xhr.status; 
+			if(s >= 200 && s <= 299 || s === 304 || s ===0) {
+				if(mime === MIME_XML) {
+					success(key, xhr.responseXML);
+				}
+				else if(mime === MIME_JSON) {
+					try {
+						success(key, JSON.parse(xhr.responseText));
+					}	
+					catch(e) {
+						error(key, e); 
+					}
+				}
+				else if(mime === MIME_OBJ) {
+					try {
+						success(key, GLT.obj.parse(xhr.responseText)); 
+					}
+					catch(e) {
+						error(key, e); 
+					}
+				}
+				else { 
+					success(key, xhr.responseText);
+				}
+			}
+			else {	
+				error(key, s || 0); 
+			}
+		}
 	}
 
 	var mime = 0; 
@@ -63,74 +107,7 @@ function simpleAjaxCall(data, done, error) {
 	var xhr = new XMLHttpRequest(); 
 	xhr.onreadystatechange = onReadyState; 
 	xhr.open('GET', file, true);  
-	xhr.send(null);
-
-	function success(file, respond) {
-		if(!respondWithTagObject) {
-			done(file, respond); 
-		}
-		else {
-			var o = Object.create(data); 
-			o.data = respond; 
-			done(file, o); 
-		}
-	}
-	
-	function onReadyState() {
-		if(!abort && (xhr.readyState === 2 || xhr.readyState === 3)){
-			mime = mimeToType(xhr.getResponseHeader("content-type"));
-			if(file.toLowerCase().lastIndexOf(".obj") + 4 === file.length) {
-				mime = MOBJ; 
-			}			
-
-			if(mime === MIMAGE) {
-				//We load a Image: Use Image class
-				abort = true; 
-				xhr.abort(); 
-
-				var image = new Image(); 
-				image.onload = function() {
-					success(file, image); 
-				};
-				image.onerror = function() {
-					error(file, "");
-				}
-				image.src = file; 
-				return; 
-			}
-		}
-
-		if(!abort && xhr.readyState === 4) {
-			var s = xhr.status; 
-			if(s >= 200 && s <= 299 || s === 304 || s ===0) {
-				if(mime === MXML) {
-					success(file, xhr.responseXML);
-				}
-				else if(mime === MJSON) {
-					try {
-						success(file, JSON.parse(xhr.responseText));
-					}	
-					catch(e) {
-						error(file, e); 
-					}
-				}
-				else if(mime === MOBJ) {
-					try {
-						success(file, GLT.obj.parse(xhr.responseText)); 
-					}
-					catch(e) {
-						error(file, e); 
-					}
-				}
-				else { 
-					success(file, xhr.responseText);
-				}
-			}
-			else {	
-				error(file, s || 0); 
-			}
-		}
-	}
+	xhr.send(null);	
 }
 
 function nop() {
@@ -146,7 +123,7 @@ function nop() {
 function loadFiles(options) {
 	if(!options) throw new Error("Passed nothing in loadFiles"); 
 
-	var files    = options.files    || [];  
+	var files    = options.files    || {};  
 	var update   = options.update   || nop; 
 	var finished = options.finished || nop; 
 	var error    = options.error    || nop; 
@@ -156,12 +133,12 @@ function loadFiles(options) {
 
 	var result = Object.create(null);  
 
-	var fileLoaded = function(file, blob) {
+	var fileLoaded = function(key, blob) {
 		filesInLoadingQueue++; 
 
-		result[file] = blob; 
+		result[key] = blob; 
 
-		update(file, filesInLoadingQueue/total); 
+		update(key, filesInLoadingQueue / total); 
 
 		if(filesInLoadingQueue === total) {
 			finished(result); 
@@ -174,15 +151,25 @@ function loadFiles(options) {
 		error(file, message); 
 	}
 
-	for(var i = 0, file; file = files[i++];) {
-		(function(file) {
-			simpleAjaxCall(file, fileLoaded, fileFailed); 
-		}(file));
+	var keys = Object.keys(files); 
+
+	for(var i = 0, key; key = keys[i++];) if(keys.hasOwnProperty(key)) {		 
+		(function(key) {
+			simpleAjaxCall(key, files[key], fileLoaded, fileFailed); 
+		}(key));
 	}
 }
 
 GLT.loadmanager = {}; 
 GLT.loadmanager.loadFiles = loadFiles; 
 }(GLT)); 
+
+#undef MIME_TEXT     
+#undef MIME_JSON    
+#undef MIME_SCRIPT  
+#undef MIME_XML      
+#undef MIME_IMAGE   
+#undef MIME_OBJ      
+#undef MIME_HTML    
 
 #endif
