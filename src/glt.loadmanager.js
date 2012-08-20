@@ -2,7 +2,7 @@
 #define GLT_LOADMANAGER_JS 
 
 #include "glt.js" 
-#inclide "glt.obj.js" 
+#include "glt.obj.js" 
 
 #define MIME_TEXT    1 
 #define MIME_JSON    2
@@ -63,7 +63,7 @@ function simpleAjaxCall(key, file, success, error) {
 					success(key, image); 
 				};
 				image.onerror = function() {
-					error(key, "");
+					error(file, "Loading image failed.");
 				}
 				image.src = file; 
 				return; 
@@ -72,7 +72,7 @@ function simpleAjaxCall(key, file, success, error) {
 
 		if(xhr.readyState === 4) {
 			var s = xhr.status; 
-			if(s >= 200 && s <= 299 || s === 304 || s ===0) {
+			if(s >= 200 && s <= 299 || s === 304 || s === 0) {
 				if(mime === MIME_XML) {
 					success(key, xhr.responseXML);
 				}
@@ -81,7 +81,7 @@ function simpleAjaxCall(key, file, success, error) {
 						success(key, JSON.parse(xhr.responseText));
 					}	
 					catch(e) {
-						error(key, e); 
+						error(file, e); 
 					}
 				}
 				else if(mime === MIME_OBJ) {
@@ -89,7 +89,7 @@ function simpleAjaxCall(key, file, success, error) {
 						success(key, GLT.obj.parse(xhr.responseText)); 
 					}
 					catch(e) {
-						error(key, e); 
+						error(file, e); 
 					}
 				}
 				else { 
@@ -97,7 +97,7 @@ function simpleAjaxCall(key, file, success, error) {
 				}
 			}
 			else {	
-				error(key, s || 0); 
+				error(file, s || 0); 
 			}
 		}
 	}
@@ -128,7 +128,7 @@ function loadFiles(options) {
 	var finished = options.finished || nop; 
 	var error    = options.error    || nop; 
 
-	var total = files.length; 
+	var total = 0; 
 	var filesInLoadingQueue = 0; 
 
 	var result = Object.create(null);  
@@ -151,12 +151,18 @@ function loadFiles(options) {
 		error(file, message); 
 	}
 
-	var keys = Object.keys(files); 
-
-	for(var i = 0, key; key = keys[i++];) if(keys.hasOwnProperty(key)) {		 
-		(function(key) {
+	if(files instanceof Array) {
+		total = files.length; 
+		for(var i = 0, file; file = files[i++];) {		 
+			simpleAjaxCall(file, file, fileLoaded, fileFailed); 
+		}
+	}	
+	else { 
+		var keys = Object.keys(files); 
+		total = keys.length; 
+		for(var i = 0, key; key = keys[i++];) if(files.hasOwnProperty(key)) {		 
 			simpleAjaxCall(key, files[key], fileLoaded, fileFailed); 
-		}(key));
+		}
 	}
 }
 

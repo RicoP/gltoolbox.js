@@ -1,4 +1,4 @@
 #!/bin/sh
 
 cd src
-cat * | cpp -P -undef -nostdinc -Wtrigraphs -fdollars-in-identifiers | uglifyjs > ../glt.js 
+cat * | cpp -P -undef -nostdinc -Wtrigraphs -fdollars-in-identifiers > ../glt.js 
