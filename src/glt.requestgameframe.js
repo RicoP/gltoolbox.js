@@ -51,9 +51,8 @@ var requestGameFrame = (function() {
 
 			callback(loopObject); 
 
-			if(useKeys) {
-				GLT.keys.update(); 
-			}
+			GLT.keys.update(); 
+
 			lasttime = now; 
 			loopObject.frame++;
 		}); 

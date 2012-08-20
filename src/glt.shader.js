@@ -35,7 +35,8 @@ function compileProgram(gl, programsource) {
 	return program; 
 }
 
-GLT.SHADER.compileProgram = compileProgram;  
+GLT.shader = {}; 
+GLT.shader.compileProgram = compileProgram;  
 }(GLT)); 
 
 #endif 

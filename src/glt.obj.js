@@ -194,6 +194,7 @@
 		};
 	}	
 
+	GLT.obj = {}; 
 	GLT.obj.parse = parse; 
 	GLT.obj.SCHEMA_V   = SCHEMA_V;  
 	GLT.obj.SCHEMA_VN  = SCHEMA_VN; 
