@@ -7,6 +7,10 @@
 (function(GLT) {
 "use strict"; 
 
+function reset() {
+	starttime = -1;  
+}
+
 var requestAnimationFrame = 
 	window.requestAnimationFrame       || 
 	window.webkitRequestAnimationFrame || 
@@ -16,48 +20,42 @@ var requestAnimationFrame =
 		window.setTimeout(callback, 1000 / 60);
 	};
 
-var requestGameFrame = (function() {
-	var starttime = -1; 
-	var lasttime = 0;
+var starttime = -1; 
+var lasttime = 0;
 
-	var time = {
-		"delta" : 0, 
-		"total" : 0
-	};
+var time = {
+	"delta" : 0, 
+	"total" : 0
+};
 
-	var loopObject = {
-		"time" : time, 
-		"frame" : 0, 
-		"reset" : reset 
-	};
-	
-	function reset() {
-		starttime = -1;  
+var loopObject = {
+	"time" : time, 
+	"frame" : 0, 
+	"reset" : reset 
+};
+
+function requestGameFrame(callback) { 
+	function innerCall() {
+		var now = Date.now(); 
+		if(starttime === -1) {
+			lasttime = now;
+			starttime = now; 
+			loopObject.frame = 0; 
+		}
+
+		time.delta = (now - lasttime) / 1000.0; 
+		time.total = (now - starttime) / 1000.0; 
+
+		callback(loopObject); 
+
+		GLT.keys.update(); 
+
+		lasttime = now; 
+		loopObject.frame++;
 	}
 
-	return function (callback) { 
-		requestAnimationFrame(function () {
-			var now = Date.now(); 
-			if(starttime === -1) {
-				lasttime = now;
-				starttime = now; 
-				loopObject.frame = 0; 
-			}
-
-			time.delta = (now - lasttime) / 1000.0; 
-			time.total = (now - starttime) / 1000.0; 
-
-			//joyfuncs.update(); 
-
-			callback(loopObject); 
-
-			GLT.keys.update(); 
-
-			lasttime = now; 
-			loopObject.frame++;
-		}); 
-	};
-}()); 
+	requestAnimationFrame(innerCall); 
+} 
 
 GLT.requestGameFrame = requestGameFrame; 
 }(GLT)); 
