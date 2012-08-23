@@ -349,7 +349,10 @@ function simpleAjaxCall(key, file, success, error) {
   }
   if(xhr.readyState === 2 || xhr.readyState === 3){
    mime = mimeToType(xhr.getResponseHeader("content-type"));
-   if(file.toLowerCase().lastIndexOf(".obj") + 4 === file.length) {
+   if(file.toLowerCase().lastIndexOf(".json") + 5 === file.length) {
+    mime = 2;
+   }
+   else if(file.toLowerCase().lastIndexOf(".obj") + 4 === file.length) {
     mime = 6;
    }
    if(mime === 5) {
