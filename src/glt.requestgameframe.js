@@ -6,30 +6,32 @@
 
 (function(GLT) {
 "use strict"; 
+var win, raf, starttime, lasttime, time; 
+
+win = window; 
+raf = 
+	win.requestAnimationFrame       || 
+	win.webkitRequestAnimationFrame || 
+	win.mozRequestAnimationFrame    || 
+	win.oRequestAnimationFrame      || 
+	win.msRequestAnimationFrame     || 
+	function( callback ) {
+		win.setTimeout(callback, 16);
+	};
+
 
 function reset() {
 	starttime = -1;  
+	time.total = 0; 
+	time.frame = 0; 
 }
 
-var requestAnimationFrame = 
-	window.requestAnimationFrame       || 
-	window.webkitRequestAnimationFrame || 
-	window.mozRequestAnimationFrame    || 
-	window.oRequestAnimationFrame      || 
-	function( callback ){
-		window.setTimeout(callback, 1000 / 60);
-	};
+starttime = -1; 
+lasttime = 0;
 
-var starttime = -1; 
-var lasttime = 0;
-
-var time = {
+time = {
+	"total" : 0, 
 	"delta" : 0, 
-	"total" : 0
-};
-
-var loopObject = {
-	"time" : time, 
 	"frame" : 0, 
 	"reset" : reset 
 };
@@ -40,21 +42,20 @@ function requestGameFrame(callback) {
 		if(starttime === -1) {
 			lasttime = now;
 			starttime = now; 
-			loopObject.frame = 0; 
+			time.frame = 0; 
 		}
 
-		time.delta = (now - lasttime) / 1000.0; 
-		time.total = (now - starttime) / 1000.0; 
-
-		callback(loopObject); 
+		var delta = (now - lasttime) / 1000.0; 
+		time.delta = delta; 
+		time.total += delta; 
+		callback(time); 
+		time.frame++;
+		lasttime = now; 
 
 		GLT.keys.update(); 
-
-		lasttime = now; 
-		loopObject.frame++;
 	}
 
-	requestAnimationFrame(innerCall); 
+	raf(innerCall); 
 } 
 
 GLT.requestGameFrame = requestGameFrame; 
