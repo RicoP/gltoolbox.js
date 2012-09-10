@@ -7,9 +7,10 @@
 	"use strict"; 
 
 	var SIZE = 256; 	
+	var KeyArray = Uint8Array || Array; 
 
-	var keysDown = new Uint8Array(SIZE); 
-	var keysDownOld = new Uint8Array(SIZE); 
+	var keysDown = new KeyArray(SIZE); 
+	var keysDownOld = new KeyArray(SIZE); 
 
 	function cleanKeys() {
 		for(var i = 0; i !== SIZE; i++) {

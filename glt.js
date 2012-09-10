@@ -24,80 +24,12 @@ function createContext(canvas) {
 
 GLT.createContext = createContext;
 }(GLT));
-
-
-
-
-
-
-
-(function (GLT) {
- "use strict";
-
- var gamepads = navigator.webkitGamepads || navigator.mozGamepads || navigator.gamepads || [];
- var e = 0.2;
- var edge0 = e;
- var edge1 = 1 - e;
-
- var NONE = {
-  "axes" : new Float32Array(6),
-  "buttons" : new Float32Array(24),
-  "id" : "NONE",
-  "index" : -1
- };
-
- var pad = NONE;
-
- function update() {
-  pad = updateFirstPad();
- }
-
- function updateFirstPad() {
-  for (var i = 0; i < gamepads.length; ++i) {
-   var pad = gamepads[i];
-   if(pad) {
-    var axes = new Float32Array(pad.axes.length);
-    for(var a = 0; a < pad.axes.length; a++) {
-     if(pad.axes[a]) {
-      axes[a] = normalise(pad.axes[a]);
-     }
-    }
-
-    return {
-     "axes" : axes,
-     "buttons" : pad.buttons,
-     "id" : pad.id,
-     "index" : pad.index
-    };
-   }
-  }
-
-  return NONE;
- }
-
- function getFirstPad() {
-  return pad;
- }
-
- function normalise(x) {
-  if(x < 0) {
-   return -normalise(-x);
-  }
-
-
-  var t = Math.min(1, Math.max(0, (x - edge0) / (edge1 - edge0)));
-  return t * t * (3.0 - 2.0 * t);
- }
-
- GLT.gamepads = {};
- GLT.gamepads.first = getFirstPad;
- GLT.gamepads.update = update;
-}(GLT));
 (function(GLT) {
  "use strict";
  var SIZE = 256;
- var keysDown = new Uint8Array(SIZE);
- var keysDownOld = new Uint8Array(SIZE);
+ var KeyArray = Uint8Array || Array;
+ var keysDown = new KeyArray(SIZE);
+ var keysDownOld = new KeyArray(SIZE);
  function cleanKeys() {
   for(var i = 0; i !== SIZE; i++) {
    keysDownOld[i] = 0;
@@ -151,10 +83,12 @@ GLT.createContext = createContext;
   "multiply":106, "add":107, "subtract":109, "decimalPoint":110, "divide":111,
   "f1":112, "f2":113, "f3":114, "f4":115, "f5":116, "f6":117,
   "f7":118, "f8":119, "f9":120, "f10":121, "f11":122, "f12":123,
+
   "numlock":144, "scrolllock":145, "semicolon":186, "equals":187, "comma":188,
   "dash":189, "period":190, "slash":191, "graveAccent":192, "openBracket":219,
   "backSlash":220, "closeBraket":221, "quote":222
  };
+
  GLT.keys = {
   codes : codes,
   update : update,
@@ -163,6 +97,112 @@ GLT.createContext = createContext;
   wasPressed : wasPressed,
   wasReleased : wasReleased
  };
+}(GLT));
+(function(GLT) {
+"use strict";
+window.requestAnimationFrame =
+ window.requestAnimationFrame ||
+ window.webkitRequestAnimationFrame ||
+ window.mozRequestAnimationFrame ||
+ window.oRequestAnimationFrame ||
+ window.msRequestAnimationFrame ||
+ function( callback ) {
+  window.setTimeout(callback, 16);
+ };
+function Gameloop(callback) {
+ function reset() {
+  starttime = -1;
+  time.total = 0;
+  time.frame = 0;
+ }
+ var lasttime = 0;
+ var framesSinceLastUpdate = 0;
+ var timeSinceLastUpdate = 0;
+ var time = {
+  "total" : 0,
+  "delta" : 0,
+  "frame" : 0,
+  "fps" : 0,
+  "reset" : reset
+ };
+ var gltkeys = GLT.keys;
+ function innerCall() {
+  var now = Date.now();
+  if(lasttime === 0) {
+   lasttime = now;
+   time.frame = 0;
+  }
+  var delta = (now - lasttime) / 1000.0;
+  time.delta = delta;
+  time.total += delta;
+  callback(time);
+  framesSinceLastUpdate++;
+  timeSinceLastUpdate += delta;
+  if(timeSinceLastUpdate >= 0.5) {
+   time.fps = framesSinceLastUpdate * (1/0.5);
+   timeSinceLastUpdate -= 0.5;
+   frameSinceLastUpdate = 0;
+  }
+  time.frame++;
+  lasttime = now;
+  gltkeys.update();
+  window.requestAnimationFrame(innerCall);
+ }
+ this.start = function() {
+  window.requestAnimationFrame(innerCall);
+ };
+}
+GLT.Gameloop = Gameloop;
+}(GLT));
+(function (GLT) {
+ "use strict";
+ var gamepads = navigator.webkitGamepads || navigator.mozGamepads || navigator.gamepads || [];
+ var e = 0.2;
+ var edge0 = e;
+ var edge1 = 1 - e;
+ var NONE = {
+  "axes" : new Float32Array(6),
+  "buttons" : new Float32Array(24),
+  "id" : "NONE",
+  "index" : -1
+ };
+ var pad = NONE;
+ function update() {
+  pad = updateFirstPad();
+ }
+ function updateFirstPad() {
+  for (var i = 0; i < gamepads.length; ++i) {
+   var pad = gamepads[i];
+   if(pad) {
+    var axes = new Float32Array(pad.axes.length);
+    for(var a = 0; a < pad.axes.length; a++) {
+     if(pad.axes[a]) {
+      axes[a] = normalise(pad.axes[a]);
+     }
+    }
+    return {
+     "axes" : axes,
+     "buttons" : pad.buttons,
+     "id" : pad.id,
+     "index" : pad.index
+    };
+   }
+  }
+  return NONE;
+ }
+ function getFirstPad() {
+  return pad;
+ }
+ function normalise(x) {
+  if(x < 0) {
+   return -normalise(-x);
+  }
+  var t = Math.min(1, Math.max(0, (x - edge0) / (edge1 - edge0)));
+  return t * t * (3.0 - 2.0 * t);
+ }
+ GLT.gamepads = {};
+ GLT.gamepads.first = getFirstPad;
+ GLT.gamepads.update = update;
 }(GLT));
 (function(GLT) {
  "use strict";
@@ -476,6 +516,7 @@ time = {
 };
 function requestGameFrame(callback) {
  function innerCall() {
+  try {
   var now = Date.now();
   if(starttime === -1) {
    lasttime = now;
@@ -489,6 +530,12 @@ function requestGameFrame(callback) {
   time.frame++;
   lasttime = now;
   GLT.keys.update();
+  }
+  catch(e) {
+   var m = e.message || e;
+   document.body.innerHTML = m+"";
+   alert(m);
+  }
  }
  raf(innerCall);
 }
