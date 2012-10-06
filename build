@@ -1,4 +1,10 @@
 #!/bin/sh
 
-cd src
-cat * | cpp -P -undef -nostdinc -Wtrigraphs -fdollars-in-identifiers > ../glt.js 
+TMP=__glt.ts
+GLT=../glt.js
+
+cd src 
+cat * | cpp -P -undef -nostdinc -Wtrigraphs -fdollars-in-identifiers > $TMP
+
+tsc $TMP --out $GLT
+rm $TMP 
