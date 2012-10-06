@@ -1,9 +1,7 @@
-#ifndef GLT_KEYS_JS
-#define GLT_KEYS_JS
+#ifndef GLT_KEYS_TS
+#define GLT_KEYS_TS
 
-#include "glt.ts" 
-
-(function(GLT) {
+module GLT.keys {
 	"use strict"; 
 
 	var SIZE = 256; 	
@@ -19,38 +17,38 @@
 		}
 	}
 
-	function update() {
+	export function update() {
 		for(var i = 0; i !== SIZE; i++) {
 			keysDownOld[i] = keysDown[i]; 
 		}
 	}
 
-	function isDown(key) {
+	export function isDown(key) {
 		return keysDown[key] !== 0; 
 	}
 
-	function isUp (key) {
+	export function isUp (key) {
 		return keysDown[key] === 0; 
 	}
 
-	function wasPressed (key) {
+	export function wasPressed (key) {
 		return keysDown[key] !== 0 && keysDownOld[key] === 0;
 	}
 
-	function wasReleased (key) {
+	export function wasReleased (key) {
 		return keysDown[key] === 0 && keysDownOld[key] !== 0;
 	}
 
 	cleanKeys(); 
 
-	document.addEventListener("keydown", function(e) {
+	document.addEventListener("keydown", function(e : KeyboardEvent) {
 		var k = e.keyCode; 
 		if(k < SIZE) {
 			keysDown[k] = 1; 
 		}
 	}, false); 
 
-	document.addEventListener("keyup", function(e) {
+	document.addEventListener("keyup", function(e : KeyboardEvent) {
 		var k = e.keyCode; 
 		if(k < SIZE) {
 			keysDown[k] = 0; 
@@ -61,7 +59,7 @@
 		cleanKeys(); 	
 	}, false);
 
-	var codes = {
+	export var codes = {
 		"backspace":8, "tab":9,     "enter":13, "shift":16,  "ctrl":17,     "alt":18, "pause":19, 
 		"capslock":20, "escape":27, "space":32, "pageUp":33, "pageDown":34, "end":35, "home":36,
 
@@ -89,14 +87,6 @@
 		"backSlash":220, "closeBraket":221, "quote":222
 	};
 
-	GLT.keys = {
-		codes       : codes, 
-		update      : update, 
-		isDown      : isDown, 
-		isUp        : isUp, 
-		wasPressed  : wasPressed, 
-		wasReleased : wasReleased
-	};
-}(GLT));
+}
 
 #endif 

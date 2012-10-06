@@ -1,21 +1,19 @@
-#ifndef GLT_OBJ_LOADER_JS
-#define GLT_OBJ_LOADER_JS
+#ifndef GLT_OBJ_TS
+#define GLT_OBJ_TS 
 
-#include "glt.ts" 
-
-(function(GLT) { 
+module GLT.obj { 
 	"use strict"; 
-
-	var SCHEMA_V   = 0;  
-	var SCHEMA_VN  = 1; 
-	var SCHEMA_VT  = 2; 
-	var SCHEMA_VTN = SCHEMA_VN | SCHEMA_VT; 
 
 	var SIZEOFFLOAT = 4; 
 
 	var rgxWhitespace = /[\t\r\n ]+/g; 
 
-	function parse(text) {
+	export var SCHEMA_V   = 0;  
+	export var SCHEMA_VN  = 1; 
+	export var SCHEMA_VT  = 2; 
+	export var SCHEMA_VTN = SCHEMA_VN | SCHEMA_VT; 
+
+	export function parse(text) {
 		var lines = text.split("\n"); 
 		var line = ""; 
 		var linenum = 0; 
@@ -193,13 +191,6 @@
 			"numVertices" : triangles * 3
 		};
 	}	
-
-	GLT.obj = {}; 
-	GLT.obj.parse = parse; 
-	GLT.obj.SCHEMA_V   = SCHEMA_V;  
-	GLT.obj.SCHEMA_VN  = SCHEMA_VN; 
-	GLT.obj.SCHEMA_VT  = SCHEMA_VT; 
-	GLT.obj.SCHEMA_VTN = SCHEMA_VN | SCHEMA_VT; 
-}(GLT)); 
+} 
 
 #endif 
