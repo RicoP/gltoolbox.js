@@ -503,15 +503,12 @@ var GLT;
 var GLT;
 (function (GLT) {
     "use strict";
-    var win;
-    var raf;
     var starttime;
     var lasttime;
     var time;
 
-    win = window;
-    raf = win.requestAnimationFrame || win.webkitRequestAnimationFrame || win.mozRequestAnimationFrame || win.oRequestAnimationFrame || win.msRequestAnimationFrame || function (callback) {
-        win.setTimeout(callback, 16);
+    window.requestAnimationFrame = window.requestAnimationFrame || window.webkitRequestAnimationFrame || window.mozRequestAnimationFrame || window.oRequestAnimationFrame || window.msRequestAnimationFrame || function (callback) {
+        window.setTimeout(callback, 16);
     };
     function reset() {
         starttime = -1;
@@ -548,7 +545,7 @@ var GLT;
                 alert(m);
             }
         }
-        raf(innerCall);
+        window.requestAnimationFrame(innerCall);
     }
     GLT.requestGameFrame = requestGameFrame;
 })(GLT || (GLT = {}));

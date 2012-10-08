@@ -3,17 +3,17 @@
 
 module GLT {
 	"use strict"; 
-	var win, raf, starttime, lasttime, time; 
+	
+	var starttime, lasttime, time; 
 
-	win = window; 
-	raf = 
-		win.requestAnimationFrame       || 
-		win.webkitRequestAnimationFrame || 
-		win.mozRequestAnimationFrame    || 
-		win.oRequestAnimationFrame      || 
-		win.msRequestAnimationFrame     || 
+	window.requestAnimationFrame =
+		window.requestAnimationFrame       || 
+		window.webkitRequestAnimationFrame || 
+		window.mozRequestAnimationFrame    || 
+		window.oRequestAnimationFrame      || 
+		window.msRequestAnimationFrame     || 
 		function( callback ) {
-			win.setTimeout(callback, 16);
+			window.setTimeout(callback, 16);
 		};
 
 
@@ -59,7 +59,7 @@ module GLT {
 			}
 		}
 
-		raf(innerCall); 
+		window.requestAnimationFrame(innerCall); 
 	} 
 } 
 

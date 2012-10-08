@@ -1,9 +1,10 @@
 #!/bin/sh
 
-TMP=/tmp/__glt.ts
+TMP=__glt.ts
 GLT=../glt.js
 
 cd src 
 cat * | cpp -P -undef -nostdinc -Wtrigraphs -fdollars-in-identifiers > $TMP
 
 tsc $TMP --out $GLT
+rm $TMP
