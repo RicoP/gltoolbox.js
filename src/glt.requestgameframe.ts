@@ -35,7 +35,6 @@ module GLT {
 
 	export function requestGameFrame(callback) { 
 		function innerCall() {
-			try { 
 			var now = Date.now(); 
 			if(starttime === -1) {
 				lasttime = now;
@@ -51,12 +50,6 @@ module GLT {
 			lasttime = now; 
 
 			GLT.keys.update(); 
-			}
-			catch(e) {
-				var m = e.message || e; 
-				document.body.innerHTML = m+""; 
-				alert(m); 
-			}
 		}
 
 		window.requestAnimationFrame(innerCall); 

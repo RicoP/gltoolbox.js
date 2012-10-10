@@ -17,28 +17,6 @@ module GLT.keys {
 		}
 	}
 
-	export function update() {
-		for(var i = 0; i !== SIZE; i++) {
-			keysDownOld[i] = keysDown[i]; 
-		}
-	}
-
-	export function isDown(key) {
-		return keysDown[key] !== 0; 
-	}
-
-	export function isUp (key) {
-		return keysDown[key] === 0; 
-	}
-
-	export function wasPressed (key) {
-		return keysDown[key] !== 0 && keysDownOld[key] === 0;
-	}
-
-	export function wasReleased (key) {
-		return keysDown[key] === 0 && keysDownOld[key] !== 0;
-	}
-
 	cleanKeys(); 
 
 	document.addEventListener("keydown", function(e : KeyboardEvent) {
@@ -87,6 +65,27 @@ module GLT.keys {
 		"backSlash":220, "closeBraket":221, "quote":222
 	};
 
+	export function update() {
+		for(var i = 0; i !== SIZE; i++) {
+			keysDownOld[i] = keysDown[i]; 
+		}
+	}
+
+	export function isDown(key) {
+		return keysDown[key] !== 0; 
+	}
+
+	export function isUp(key) {
+		return keysDown[key] === 0; 
+	}
+
+	export function wasPressed(key) {
+		return keysDown[key] !== 0 && keysDownOld[key] === 0;
+	}
+
+	export function wasReleased(key) {
+		return keysDown[key] === 0 && keysDownOld[key] !== 0;
+	}
 }
 
 #endif 

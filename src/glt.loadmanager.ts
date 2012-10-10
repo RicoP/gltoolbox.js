@@ -5,6 +5,7 @@
 
 module GLT.loadmanager { 
 	"use strict"; 
+
 	var MIME_TEXT   =1;
 	var MIME_JSON   =2;
 	var MIME_SCRIPT =3;
@@ -12,8 +13,6 @@ module GLT.loadmanager {
 	var MIME_IMAGE  =5;
 	var MIME_OBJ    =6;
 	var MIME_HTML   =7;
-
-
 
 	function mimeToType(mime) {
 		mime = mime.toLowerCase(); 
@@ -117,14 +116,21 @@ module GLT.loadmanager {
 	function nop() {
 		//Do Nothing 
 	} 
-	
+
+	export interface Options {	 
+		files : any; 
+		update   ?: (file : string, p : number) => void; 
+		error    ?: (file : string, message : string) => void;
+		finished  : (data : any) => void;  
+	}
+
 	//options = {
 	// "files" = ["path1", "path2", ...]
 	// "update" = function (lastFileLoaded, percentage [0..1]
 	// "finished" = function ([{file:"file1",blob:"blob1"},{file:"file2",blob:"blob2"},...])
 	// "error" = function (file, error)
 	//}
-	function loadFiles(options) {
+	export function loadFiles(options : Options) {
 		if(!options) throw new Error("Passed nothing in loadFiles"); 
 
 		var files    = options.files    || {};  
@@ -169,7 +175,6 @@ module GLT.loadmanager {
 			}
 		}
 	}
-
 } 
 
 #endif 

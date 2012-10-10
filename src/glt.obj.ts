@@ -8,22 +8,32 @@ module GLT.obj {
 
 	var rgxWhitespace = /[\t\r\n ]+/g; 
 
+	export interface Mesh {
+		stride : number; 
+		schema : number; 
+		voffset : number;  
+		toffset : number;  
+		noffset : number;  
+		numVertices : number;
+		rawData : Float32Array; 
+	}
+
 	export var SCHEMA_V   = 0;  
 	export var SCHEMA_VN  = 1; 
 	export var SCHEMA_VT  = 2; 
 	export var SCHEMA_VTN = SCHEMA_VN | SCHEMA_VT; 
 
-	export function parse(text) {
+	export function parse(text : string) : Mesh {
 		var lines = text.split("\n"); 
 		var line = ""; 
 		var linenum = 0; 
 		
-		var vertice = []; //[x1,y1,z1,x2,y2,z2,...]
-		var normals = []; //[x1,y1,z1,x2,y2,z2,...]
-		var textureuv = []; //[u1,v1,u2,v2,...] 	
-		var indiceV = []; 
-		var indiceN = []; 
-		var indiceT = []; 
+		var vertice   : number[] = []; //[x1,y1,z1,x2,y2,z2,...]
+		var normals   : number[] = []; //[x1,y1,z1,x2,y2,z2,...]
+		var textureuv : number[] = []; //[u1,v1,u2,v2,...] 	
+		var indiceV   : number[] = []; 
+		var indiceN   : number[] = []; 
+		var indiceT   : number[] = []; 
 		var triangles = 0; 
 		
 		var funcs = {
@@ -178,8 +188,6 @@ module GLT.obj {
 				rawData[p++] = 0.0;
 			}
 		}
-
-		//console.log("raw", rawData); 
 
 		return {
 			"stride" : stride * SIZEOFFLOAT, //in Bytes 

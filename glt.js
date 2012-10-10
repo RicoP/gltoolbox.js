@@ -8,10 +8,9 @@ var GLT;
         "webkit-3d"
     ];
     function createContext(canvas) {
-        var i;
         var name;
         var gl;
-        for(i = 0; name = names[i++]; ) {
+        for(var i = 0; name = names[i++]; ) {
             gl = canvas.getContext(name, {
                 alpha: false,
                 preserveDrawingBuffer: true
@@ -39,28 +38,6 @@ var GLT;
                 keysDown[i] = 0;
             }
         }
-        function update() {
-            for(var i = 0; i !== SIZE; i++) {
-                keysDownOld[i] = keysDown[i];
-            }
-        }
-        keys.update = update;
-        function isDown(key) {
-            return keysDown[key] !== 0;
-        }
-        keys.isDown = isDown;
-        function isUp(key) {
-            return keysDown[key] === 0;
-        }
-        keys.isUp = isUp;
-        function wasPressed(key) {
-            return keysDown[key] !== 0 && keysDownOld[key] === 0;
-        }
-        keys.wasPressed = wasPressed;
-        function wasReleased(key) {
-            return keysDown[key] === 0 && keysDownOld[key] !== 0;
-        }
-        keys.wasReleased = wasReleased;
         cleanKeys();
         document.addEventListener("keydown", function (e) {
             var k = e.keyCode;
@@ -178,6 +155,28 @@ var GLT;
             "closeBraket": 221,
             "quote": 222
         };
+        function update() {
+            for(var i = 0; i !== SIZE; i++) {
+                keysDownOld[i] = keysDown[i];
+            }
+        }
+        keys.update = update;
+        function isDown(key) {
+            return keysDown[key] !== 0;
+        }
+        keys.isDown = isDown;
+        function isUp(key) {
+            return keysDown[key] === 0;
+        }
+        keys.isUp = isUp;
+        function wasPressed(key) {
+            return keysDown[key] !== 0 && keysDownOld[key] === 0;
+        }
+        keys.wasPressed = wasPressed;
+        function wasReleased(key) {
+            return keysDown[key] === 0 && keysDownOld[key] !== 0;
+        }
+        keys.wasReleased = wasReleased;
     })(GLT.keys || (GLT.keys = {}));
     var keys = GLT.keys;
 
@@ -495,6 +494,7 @@ var GLT;
                 }
             }
         }
+        loadmanager.loadFiles = loadFiles;
     })(GLT.loadmanager || (GLT.loadmanager = {}));
     var loadmanager = GLT.loadmanager;
 
@@ -525,25 +525,19 @@ var GLT;
     };
     function requestGameFrame(callback) {
         function innerCall() {
-            try  {
-                var now = Date.now();
-                if(starttime === -1) {
-                    lasttime = now;
-                    starttime = now;
-                    time.frame = 0;
-                }
-                var delta = (now - lasttime) / 1000;
-                time.delta = delta;
-                time.total += delta;
-                callback(time);
-                time.frame++;
+            var now = Date.now();
+            if(starttime === -1) {
                 lasttime = now;
-                GLT.keys.update();
-            } catch (e) {
-                var m = e.message || e;
-                document.body.innerHTML = m + "";
-                alert(m);
+                starttime = now;
+                time.frame = 0;
             }
+            var delta = (now - lasttime) / 1000;
+            time.delta = delta;
+            time.total += delta;
+            callback(time);
+            time.frame++;
+            lasttime = now;
+            GLT.keys.update();
         }
         window.requestAnimationFrame(innerCall);
     }

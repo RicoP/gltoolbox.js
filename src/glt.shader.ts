@@ -1,7 +1,7 @@
 #ifndef GLT_SHADER_TS 
 #define GLT_SHADER_TS 
 
-/// <reference path="webgl.d.ts" />
+#include "webgl.ts"
 
 module GLT.shader {
 	"use strict"; 
