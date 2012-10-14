@@ -38,7 +38,7 @@ module GLT.obj {
 		
 		var funcs = {
 			"v" : function(s) {
-				if(!s || s.length != 3) {
+				if(!s || s.length !== 3) {
 					throw new Error("Can't accept Vertic without 3 components. LINE:" + line); 
 				}
 
@@ -49,7 +49,7 @@ module GLT.obj {
 				vertice.push(x,y,z); 
 			},
 			"vn" : function(s) {
-				if(!s || s.length != 3) {
+				if(!s || s.length !== 3) {
 					throw new Error("Can't accept Normal without 3 components. LINE:" + linenum); 
 				}
 	
@@ -101,7 +101,7 @@ module GLT.obj {
 
 		};
 
-		for(linenum = 0; linenum != lines.length;) {			
+		for(linenum = 0; linenum !== lines.length;) {			
 			line = lines[linenum++].trim();
 			var elements = line.split(rgxWhitespace);
 			var head = elements.shift(); 
@@ -167,7 +167,7 @@ module GLT.obj {
 		var ti = 0; 
 		var ni = 0; 	
 
-		for(var i = 0; i != indiceV.length; i++) {
+		for(var i = 0; i !== indiceV.length; i++) {
 			vi = 3*indiceV[i];
 			rawData[p++] = vertice[ vi++ ]; 
 			rawData[p++] = vertice[ vi++ ]; 

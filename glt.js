@@ -205,7 +205,7 @@ var GLT;
             var triangles = 0;
             var funcs = {
                 "v": function (s) {
-                    if(!s || s.length != 3) {
+                    if(!s || s.length !== 3) {
                         throw new Error("Can't accept Vertic without 3 components. LINE:" + line);
                     }
                     var x = Number(s[0]);
@@ -214,7 +214,7 @@ var GLT;
                     vertice.push(x, y, z);
                 },
                 "vn": function (s) {
-                    if(!s || s.length != 3) {
+                    if(!s || s.length !== 3) {
                         throw new Error("Can't accept Normal without 3 components. LINE:" + linenum);
                     }
                     var x = Number(s[0]);
@@ -260,7 +260,7 @@ var GLT;
                     }
                 }
             };
-            for(linenum = 0; linenum != lines.length; ) {
+            for(linenum = 0; linenum !== lines.length; ) {
                 line = lines[linenum++].trim();
                 var elements = line.split(rgxWhitespace);
                 var head = elements.shift();
@@ -323,7 +323,7 @@ var GLT;
             var vi = 0;
             var ti = 0;
             var ni = 0;
-            for(var i = 0; i != indiceV.length; i++) {
+            for(var i = 0; i !== indiceV.length; i++) {
                 vi = 3 * indiceV[i];
                 rawData[p++] = vertice[vi++];
                 rawData[p++] = vertice[vi++];
