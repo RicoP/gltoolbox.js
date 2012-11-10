@@ -184,6 +184,71 @@ var GLT;
 
 var GLT;
 (function (GLT) {
+    "use strict";
+    window.requestAnimationFrame = window.requestAnimationFrame || window.webkitRequestAnimationFrame || window.mozRequestAnimationFrame || window.oRequestAnimationFrame || window.msRequestAnimationFrame || function (callback) {
+        window.setTimeout(callback, 16);
+    };
+    var perfnow = ((function () {
+        return ((performance && performance.now) ? function () {
+            return performance.now();
+        } : (performance && performance.webkitNow) ? function () {
+            return performance.webkitNow();
+        } : (performance && performance.mozNow) ? function () {
+            return performance.mozNow();
+        } : (performance && performance.oNow) ? function () {
+            return performance.oNow();
+        } : (Date.now) ? function () {
+            return Date.now();
+        } : function () {
+            return +new Date();
+        });
+    })());
+    var GameTime = (function () {
+        function GameTime() {
+            this.total = 0;
+            this.delta = 0;
+            this.frame = 0;
+            this.last = 0;
+            this.last = perfnow() * 0.001;
+        }
+        GameTime.prototype.reset = function () {
+            this.total = 0;
+            this.delta = 0;
+            this.frame = 0;
+            this.last = perfnow() * 0.001;
+        };
+        return GameTime;
+    })();
+    GLT.GameTime = GameTime;    
+    var Gameloop = (function () {
+        function Gameloop(gl, callback) {
+            this.gl = gl;
+            this.callback = callback;
+            this.rafid = -1;
+            this.gametime = new GameTime();
+        }
+        Gameloop.prototype.innerCallback = function () {
+            var now = perfnow() * 0.001;
+            this.gametime.delta = now - this.gametime.last;
+            this.gametime.total += this.gametime.delta;
+            this.gametime.last = now;
+            this.gametime.frame++;
+            window.requestAnimationFrame(this.innerCallback, this.canvas);
+            this.callback(this.gl, this.gametime);
+            GLT.keys.update();
+        };
+        Gameloop.prototype.start = function () {
+            if(this.rafid !== -1) {
+                this.rafid = window.requestAnimationFrame(this.innerCallback, this.canvas);
+            }
+        };
+        return Gameloop;
+    })();
+    GLT.Gameloop = Gameloop;    
+})(GLT || (GLT = {}));
+
+var GLT;
+(function (GLT) {
     (function (obj) {
         "use strict";
         var SIZEOFFLOAT = 4;
@@ -498,50 +563,6 @@ var GLT;
     })(GLT.loadmanager || (GLT.loadmanager = {}));
     var loadmanager = GLT.loadmanager;
 
-})(GLT || (GLT = {}));
-
-var GLT;
-(function (GLT) {
-    "use strict";
-    var starttime;
-    var lasttime;
-    var time;
-
-    window.requestAnimationFrame = window.requestAnimationFrame || window.webkitRequestAnimationFrame || window.mozRequestAnimationFrame || window.oRequestAnimationFrame || window.msRequestAnimationFrame || function (callback) {
-        window.setTimeout(callback, 16);
-    };
-    function reset() {
-        starttime = -1;
-        time.total = 0;
-        time.frame = 0;
-    }
-    starttime = -1;
-    lasttime = 0;
-    time = {
-        "total": 0,
-        "delta": 0,
-        "frame": 0,
-        "reset": reset
-    };
-    function requestGameFrame(callback) {
-        function innerCall() {
-            var now = Date.now();
-            if(starttime === -1) {
-                lasttime = now;
-                starttime = now;
-                time.frame = 0;
-            }
-            var delta = (now - lasttime) / 1000;
-            time.delta = delta;
-            time.total += delta;
-            callback(time);
-            time.frame++;
-            lasttime = now;
-            GLT.keys.update();
-        }
-        window.requestAnimationFrame(innerCall);
-    }
-    GLT.requestGameFrame = requestGameFrame;
 })(GLT || (GLT = {}));
 
 var GLT;

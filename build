@@ -7,4 +7,4 @@ cd src
 cat * | cpp -P -undef -nostdinc -Wtrigraphs -fdollars-in-identifiers > $TMP
 
 tsc $TMP --out $GLT
-rm $TMP
+mv $TMP /tmp/
