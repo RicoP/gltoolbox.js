@@ -1,5 +1,5 @@
-#ifndef GLT_REQUESTGAMEFRAME_TS 
-#define GLT_REQUESTGAMEFRAME_TS 
+#ifndef GLT_GAMELOOP_TS 
+#define GLT_GAMELOOP_TS
 
 #include "glt.keys.ts" 
 
