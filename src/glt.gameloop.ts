@@ -24,7 +24,7 @@ module GLT {
 			: (performance && performance.oNow)      ? function() { return performance.oNow();      }
 			: (Date.now)                             ? function() { return Date.now();              }
 			: function() { return +new Date(); }
-		)
+		);
 	}());
 
 	export class GameTime {
