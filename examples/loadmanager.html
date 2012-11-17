@@ -1,0 +1,43 @@
+<!doctype html> 
+<html lang="en" ng-app>
+<head>
+	<link href="bootstrap/css/bootstrap.css" rel="stylesheet" />
+</head> 
+<body>
+
+<div class="container-fluid" ng-controller="GLTController">
+	<div class="progress progress-striped active">
+		<div class="bar" style="width: 0%;"></div>
+	</div>
+	<h1>{{state}}</h1> <br />	
+	progress: {{lastFile || 'Loading...'}} <br />	
+</div> 
+
+<script src="//ajax.googleapis.com/ajax/libs/angularjs/1.0.2/angular.min.js"></script>
+<script src="//ajax.googleapis.com/ajax/libs/jquery/1.8.3/jquery.min.js"></script>
+<script>
+$(function() { 
+}); 
+
+function GLTController($scope) {
+	$scope.state = 'Loading'; 
+
+	GLT.loadmanager.createQueue({
+		files : {
+			'map.json' : 'map1', 
+			'char.json' : 'hero' 
+		}, 
+
+		update : function(perc, file) {
+			$('.progress .bar').css(width, 100 * perc + '%'); 
+			$scope.lastFile = file; 
+		}, 
+
+		finished : function(files) {
+			$scope.state = 'done'; 
+		};
+	});
+}
+</script> 
+</body> 
+</head> 

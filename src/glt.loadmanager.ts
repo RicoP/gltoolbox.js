@@ -40,7 +40,7 @@ module GLT.loadmanager {
 		return MIME_TEXT; 
 	}
 
-	function simpleAjaxCall(key, file, success, error) {
+	function simpleAjaxCall(file, success, error) {
 		function onReadyState() {
 			if(abort) {
 				return; 
@@ -55,7 +55,6 @@ module GLT.loadmanager {
 					mime = MIME_OBJ; 
 				}			
 
-
 				if(mime === MIME_IMAGE) {
 					//We load a Image: Use Image class
 					abort = true; 
@@ -63,7 +62,7 @@ module GLT.loadmanager {
 
 					var image = new Image(); 
 					image.onload = function() {
-						success(key, image); 
+						success(image); 
 					};
 					image.onerror = function() {
 						error(file, "Loading image failed.");
@@ -77,11 +76,11 @@ module GLT.loadmanager {
 				var s = xhr.status; 
 				if(s >= 200 && s <= 299 || s === 304 || s === 0) {
 					if(mime === MIME_XML) {
-						success(key, xhr.responseXML);
+						success(xhr.responseXML);
 					}
 					else if(mime === MIME_JSON) {
 						try {
-							success(key, JSON.parse(xhr.responseText));
+							success(JSON.parse(xhr.responseText));
 						}	
 						catch(e) {
 							error(file, e); 
@@ -89,14 +88,14 @@ module GLT.loadmanager {
 					}
 					else if(mime === MIME_OBJ) {
 						try {
-							success(key, GLT.obj.parse(xhr.responseText)); 
+							success(GLT.obj.parse(xhr.responseText)); 
 						}
 						catch(e) {
 							error(file, e); 
 						}
 					}
 					else { 
-						success(key, xhr.responseText);
+						success(xhr.responseText);
 					}
 				}
 				else {	
@@ -118,62 +117,131 @@ module GLT.loadmanager {
 	} 
 
 	export interface Options {	 
-		files : any; 
+		files     : any; 
+		finished  : (data : any) => void;  
 		update   ?: (file : string, p : number) => void; 
 		error    ?: (file : string, message : string) => void;
-		finished  : (data : any) => void;  
 	}
 
-	//options = {
-	// "files" = ["path1", "path2", ...]
-	// "update" = function (lastFileLoaded, percentage [0..1]
-	// "finished" = function ([{file:"file1",blob:"blob1"},{file:"file2",blob:"blob2"},...])
-	// "error" = function (file, error)
-	//}
-	export function loadFiles(options : Options) {
-		if(!options) throw new Error("Passed nothing in loadFiles"); 
+	export interface LoadContext {
+		add : (data : any, propertyName : string) => void
+	} 
 
-		var files    = options.files    || {};  
+	function yieldError(message) {
+		throw new Error(message); 
+	}
+
+	function newObj() {
+		return Object.create(null); 
+	}
+
+	export interface IQueueOptions {	 
+		finished  : (data : any) => void;  
+		update   ?: (file : string, p : number) => void; 
+		error    ?: (file : string, error : any) => void;
+	}
+
+	export interface IScope {
+		$load : (options : ILoadOptions) => Scope; 
+	}
+
+	export interface ILoadOptions {
+		url : string;
+		scope ?: string; 
+		transform ?: (from : any) => any; 
+		append ?: (data : any, scope : Scope) => void; 
+	}
+
+	class Scope implements IScope {		
+		constructor(private host : any, private name : string) {
+		
+		}
+		
+		public $load(options : ILoadOptions) {
+			return this; 
+		}
+	}
+
+	export function Queue(options : IQueueOptions) {
+		var publicUpdate   = options.update   || nop; 
+		var publicError    = options.error    || nop; 
+		var publicFinished = options.finished || yieldError('must define a finished callback.'); 
+
+	}
+
+	export function createQueue(options : Options) {
 		var update   = options.update   || nop; 
-		var finished = options.finished || nop; 
 		var error    = options.error    || nop; 
+		var files    = options.files    || yieldError('must define a files property.');  
+		var finished = options.finished || yieldError('must define a finsihed property.'); 
 
-		var total = 0; 
-		var filesInLoadingQueue = 0; 
+		var totalDownloads    = 0; 
+		var finishedDownloads = 0; 
+		var resultFiles       = newObj(); 
 
-		var result = Object.create(null);  
+		var updateQueue = (file) => {
+			update(finishedDownloads / totalDownloads, file); 
 
-		var fileLoaded = function(key, blob) {
-			filesInLoadingQueue++; 
-
-			result[key] = blob; 
-
-			update(key, filesInLoadingQueue / total); 
-
-			if(filesInLoadingQueue === total) {
-				finished(result); 
+			if(totalDownloads === finishedDownloads) {
+				finished(resultFiles); 
 			}
+		};
+
+		var fileError = (url, error) => {
+			//deactivate any updates
+			updateQueue = nop; 
+			fileError = nop; 
+
+			error(url, error); 
+		};
+
+		var addToCurrentQueue = (url : string, action : any, obj : any) => {
+			totalDownload++; 
+
+			var executeAction : (data : any) => void; 
+			if(typeof action === 'string') { 
+				executeAction = (data) => {obj[action] = data};
+			}
+			else if(typeof action === 'function') {
+				executeAction = (data) => {
+					var subObj = newObj(); 
+					var context : LoadContext = {
+						add : (url, property) => addToCurrentQueue(url, property, subObj) 
+					};
+
+					var prop = action(data, context) || yieldError('action must return a string.'); 
+					obj[prop] = subobj; 
+				};
+			}
+			else { 
+				yieldError('the action must be either be a string or a callback.');
+			}
+
+			var fileLoaded = (data) => {
+				try { 
+					executeAction(); 
+					finishedDownloads++; 
+					updateQueue(url); 
+				}
+				catch(e) {
+					fileError(url, e); 
+				}
+			};
+
+			simpleAjaxCall(url, fileLoaded, fileError); 
 		}; 
 
-		var fileFailed = function(file, message) {
-			fileLoaded = nop; 
-			fileFailed = nop; 
-			error(file, message); 
+		var keys = Object.keys(files).filter(key => files.hasOwnProperty(key)); 
+
+		if(keys.length === 0 || files instanceof Array) {
+			yieldError('files must be a JSON.'); 
 		}
 
-		if(files instanceof Array) {
-			total = files.length; 
-			for(var i = 0, file; file = files[i++];) {		 
-				simpleAjaxCall(file, file, fileLoaded, fileFailed); 
-			}
-		}	
-		else { 
-			var keys = Object.keys(files); 
-			total = keys.length; 
-			for(var i = 0, key; key = keys[i++];) if(files.hasOwnProperty(key)) {		 
-				simpleAjaxCall(key, files[key], fileLoaded, fileFailed); 
-			}
-		}
+		for(var i = 0; i !== keys.length; i++) {
+			var url    = keys[i]; 
+			var action = files[url]; 
+			addToCurrentQueue(url, action, resultFiles);  
+		}		
 	}
 } 
 
