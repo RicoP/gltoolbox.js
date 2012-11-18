@@ -23,7 +23,6 @@ var GLT;
     }
     GLT.createContext = createContext;
 })(GLT || (GLT = {}));
-
 var GLT;
 (function (GLT) {
     (function (keys) {
@@ -179,14 +178,12 @@ var GLT;
         keys.wasReleased = wasReleased;
     })(GLT.keys || (GLT.keys = {}));
     var keys = GLT.keys;
-
 })(GLT || (GLT = {}));
-
 var GLT;
 (function (GLT) {
     "use strict";
     window.requestAnimationFrame = window.requestAnimationFrame || window.webkitRequestAnimationFrame || window.mozRequestAnimationFrame || window.oRequestAnimationFrame || window.msRequestAnimationFrame || function (callback) {
-        window.setTimeout(callback, 16);
+        return window.setTimeout(callback, 16);
     };
     var perfnow = ((function () {
         return ((performance && performance.now) ? function () {
@@ -246,7 +243,6 @@ var GLT;
     })();
     GLT.Gameloop = Gameloop;    
 })(GLT || (GLT = {}));
-
 var GLT;
 (function (GLT) {
     (function (obj) {
@@ -420,9 +416,7 @@ var GLT;
         obj.parse = parse;
     })(GLT.obj || (GLT.obj = {}));
     var obj = GLT.obj;
-
 })(GLT || (GLT = {}));
-
 var GLT;
 (function (GLT) {
     (function (loadmanager) {
@@ -453,18 +447,20 @@ var GLT;
             }
             return MIME_TEXT;
         }
-        function simpleAjaxCall(key, file, success, error) {
+        function simpleAjaxCall(file, success, error) {
             function onReadyState() {
+                console.log('onreadystate', file, xhr.readyState);
                 if(abort) {
                     return;
                 }
                 if(xhr.readyState === 2 || xhr.readyState === 3) {
-                    mime = mimeToType(xhr.getResponseHeader("content-type"));
                     if(file.toLowerCase().lastIndexOf(".json") + 5 === file.length) {
                         mime = MIME_JSON;
                     } else {
                         if(file.toLowerCase().lastIndexOf(".obj") + 4 === file.length) {
                             mime = MIME_OBJ;
+                        } else {
+                            mime = mimeToType(xhr.getResponseHeader("content-type"));
                         }
                     }
                     if(mime === MIME_IMAGE) {
@@ -472,7 +468,7 @@ var GLT;
                         xhr.abort();
                         var image = new Image();
                         image.onload = function () {
-                            success(key, image);
+                            success(image);
                         };
                         image.onerror = function () {
                             error(file, "Loading image failed.");
@@ -485,23 +481,23 @@ var GLT;
                     var s = xhr.status;
                     if(s >= 200 && s <= 299 || s === 304 || s === 0) {
                         if(mime === MIME_XML) {
-                            success(key, xhr.responseXML);
+                            success(xhr.responseXML);
                         } else {
                             if(mime === MIME_JSON) {
                                 try  {
-                                    success(key, JSON.parse(xhr.responseText));
+                                    success(JSON.parse(xhr.responseText));
                                 } catch (e) {
                                     error(file, e);
                                 }
                             } else {
                                 if(mime === MIME_OBJ) {
                                     try  {
-                                        success(key, GLT.obj.parse(xhr.responseText));
+                                        success(GLT.obj.parse(xhr.responseText));
                                     } catch (e) {
                                         error(file, e);
                                     }
                                 } else {
-                                    success(key, xhr.responseText);
+                                    success(xhr.responseText);
                                 }
                             }
                         }
@@ -519,52 +515,86 @@ var GLT;
         }
         function nop() {
         }
-        function loadFiles(options) {
-            if(!options) {
-                throw new Error("Passed nothing in loadFiles");
-            }
-            var files = options.files || {
-            };
-            var update = options.update || nop;
-            var finished = options.finished || nop;
-            var error = options.error || nop;
-            var total = 0;
-            var filesInLoadingQueue = 0;
-            var result = Object.create(null);
-            var fileLoaded = function (key, blob) {
-                filesInLoadingQueue++;
-                result[key] = blob;
-                update(key, filesInLoadingQueue / total);
-                if(filesInLoadingQueue === total) {
-                    finished(result);
-                }
-            };
-            var fileFailed = function (file, message) {
-                fileLoaded = nop;
-                fileFailed = nop;
-                error(file, message);
-            };
-            if(files instanceof Array) {
-                total = files.length;
-                for(var i = 0, file; file = files[i++]; ) {
-                    simpleAjaxCall(file, file, fileLoaded, fileFailed);
-                }
-            } else {
-                var keys = Object.keys(files);
-                total = keys.length;
-                for(var i = 0, key; key = keys[i++]; ) {
-                    if(files.hasOwnProperty(key)) {
-                        simpleAjaxCall(key, files[key], fileLoaded, fileFailed);
-                    }
-                }
-            }
+        function yieldError(message) {
+            throw new Error(message);
         }
-        loadmanager.loadFiles = loadFiles;
+        function newObj() {
+            return Object.create(null);
+        }
+        var identity = function (x) {
+            return x;
+        };
+        var Scope = (function () {
+            function Scope(mother, name, callbacks) {
+                this.mother = mother;
+                this.name = name;
+                this.callbacks = callbacks;
+                this.onUpdate = callbacks.update || nop;
+                this.onError = callbacks.error || nop;
+                this.onDone = callbacks.done || yieldError('must define a finished callback.');
+                this.children = [];
+                if(!mother[name]) {
+                    mother[name] = newObj();
+                }
+                this.totalDownloads = 0;
+                this.finishedDownloads = 0;
+            }
+            Scope.prototype.setBodyData = function (scope, data) {
+                if(typeof scope === 'string') {
+                    this.mother[this.name][scope] = data;
+                }
+            };
+            Scope.prototype.isDone = function () {
+                return this.finishedDownloads === this.totalDownloads;
+            };
+            Scope.prototype.calculatePercentage = function () {
+                return this.finishedDownloads / this.totalDownloads;
+            };
+            Scope.prototype.$load = function (options) {
+                var _this = this;
+                var url = options.url;
+                var transform = options.transform || identity;
+                var scopeName = options.scope;
+                var loaded = function (data) {
+                    var result = transform(data);
+                    _this.setBodyData(scopeName, result);
+                    _this.finishedDownloads++;
+                    _this.onUpdate(url, _this.calculatePercentage());
+                    if(_this.isDone()) {
+                        _this.onDone();
+                    }
+                };
+                this.totalDownloads++;
+                simpleAjaxCall(url, loaded, this.onError);
+                return this;
+            };
+            return Scope;
+        })();        
+        function Queue(options) {
+            var publicUpdate = options.update || nop;
+            var publicError = options.error || nop;
+            var publicFinished = options.finished || yieldError('must define a finished callback.');
+            var motherObj = {
+                MOTHER: null
+            };
+            var callbacks = {
+                update: function (f, p) {
+                    return publicUpdate(f, p);
+                },
+                error: function (url, error) {
+                    return publicError(url, error);
+                },
+                done: function () {
+                    return publicFinished(motherObj.MOTHER);
+                }
+            };
+            var motherScope = new Scope(motherObj, 'MOTHER', callbacks);
+            return motherScope;
+        }
+        loadmanager.Queue = Queue;
     })(GLT.loadmanager || (GLT.loadmanager = {}));
     var loadmanager = GLT.loadmanager;
-
 })(GLT || (GLT = {}));
-
 var GLT;
 (function (GLT) {
     var MAX_STACK = 1024;
@@ -659,7 +689,6 @@ var GLT;
     })();
     GLT.MatrixStack = MatrixStack;    
 })(GLT || (GLT = {}));
-
 var GLT;
 (function (GLT) {
     (function (shader) {
@@ -695,7 +724,5 @@ var GLT;
         shader.compileProgram = compileProgram;
     })(GLT.shader || (GLT.shader = {}));
     var shader = GLT.shader;
-
 })(GLT || (GLT = {}));
-
 ; ;

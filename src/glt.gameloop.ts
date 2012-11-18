@@ -13,7 +13,7 @@ module GLT {
 		window.oRequestAnimationFrame      || 
 		window.msRequestAnimationFrame     || 
 		function( callback ) {
-			window.setTimeout(callback, 16);
+			return window.setTimeout(callback, 16);
 		};
 
 	var perfnow = (function() {

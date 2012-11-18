@@ -15,6 +15,7 @@
 
 <script src="//ajax.googleapis.com/ajax/libs/angularjs/1.0.2/angular.min.js"></script>
 <script src="//ajax.googleapis.com/ajax/libs/jquery/1.8.3/jquery.min.js"></script>
+<script src="../glt.js"> </script> 
 <script>
 $(function() { 
 }); 
@@ -22,21 +23,19 @@ $(function() {
 function GLTController($scope) {
 	$scope.state = 'Loading'; 
 
-	GLT.loadmanager.createQueue({
-		files : {
-			'map.json' : 'map1', 
-			'char.json' : 'hero' 
+	GLT.loadmanager.Queue({ 
+		error : function(e) {
+			console.log(e); 
 		}, 
-
-		update : function(perc, file) {
-			$('.progress .bar').css(width, 100 * perc + '%'); 
-			$scope.lastFile = file; 
+		update : function(p, f) {
+			console.log(p,f); 
 		}, 
-
 		finished : function(files) {
-			$scope.state = 'done'; 
-		};
-	});
+			console.log(files); 
+		}
+	})
+	.$load({ url : 'char.json', scope : 'char' })
+	.$load({ url : 'game.json', scope : 'game' }); 
 }
 </script> 
 </body> 
